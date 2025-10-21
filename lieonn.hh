@@ -1682,7 +1682,7 @@ public:
   inline T* allocate(size_t n, const void*) { return allocate(n); }
   inline size_t max_size() const { return vmlieonn() / sizeof(T); }
   template <typename U, class ... _Args> inline void construct(U* p, _Args&& ... __args) {
-    ::new ((void*)p) U(_VSTD::forward<_Args>(__args)...);
+    ::new ((void*)p) U(std::forward<_Args>(__args)...);
   }
   inline void destroy(T* p) { p->~T(); }
   inline bool operator == (const SimpleAllocator<T>& x) { return true; }

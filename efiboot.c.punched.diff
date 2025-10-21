@@ -1,0 +1,88 @@
+68c68
+< EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
+---
+> // EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
+74a75
+> /*
+89c90
+< 	/* disable reset by watchdog after 5 minutes */
+---
+> 	// disable reset by watchdog after 5 minutes
+120c121
+< 	/* allocate run_i386_start() on heap */
+---
+> 	// allocate run_i386_start() on heap
+126,127c127,128
+< 	/* can't use sa_cleanup since printf is used after sa_cleanup() */
+< 	/* sa_cleanup = efi_cleanup; */
+---
+> 	// can't use sa_cleanup since printf is used after sa_cleanup()
+> 	// sa_cleanup = efi_cleanup;
+135,138c136,137
+< 	/*
+< 	 * Move the stack before calling boot().  UEFI on some machines
+< 	 * locate the stack on our kernel load address.
+< 	 */
+---
+> 	// Move the stack before calling boot().  UEFI on some machines
+> 	// locate the stack on our kernel load address.
+151c150
+< 	/* must not reach here */
+---
+> 	// must not reach here
+153a153
+> */
+161c161
+< 	/* retry once in case of failure */
+---
+> 	// retry once in case of failure
+194c194
+< 		handles = alloc(sz);
+---
+> 		handles = (EFI_HANDLE*)alloc(sz);
+222c222
+< 		di = alloc(sizeof(struct diskinfo));
+---
+> 		di = (struct diskinfo*)alloc(sizeof(struct diskinfo));
+349c349
+< 	mm = alloc(siz);
+---
+> 	mm = (EFI_MEMORY_DESCRIPTOR*)alloc(siz);
+688c688
+< 		handles = alloc(sz);
+---
+> 		handles = (EFI_HANDLE*)alloc(sz);
+710c710
+< 			dpp = (EFI_DEV_PATH_PTR)dp;
+---
+> 			dpp = *(EFI_DEV_PATH_PTR*)(void*)dp;
+758,759c758,759
+< 		    serio->Mode->Timeout, serio->Mode->Parity,
+< 		    serio->Mode->DataBits, serio->Mode->StopBits);
+---
+> 		    serio->Mode->Timeout, (EFI_PARITY_TYPE)serio->Mode->Parity,
+> 		    serio->Mode->DataBits, (EFI_STOP_BITS_TYPE)serio->Mode->StopBits);
+998c998
+< 	EFI_DEVICE_PATH *dp = (void *)data;
+---
+> 	EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH*)(void *)data;
+1013c1013
+< 	status = RS->GetVariable(L"ConOut", &global, NULL, &size, &data);
+---
+> 	status = RS->GetVariable((CHAR16*)(void*)L"ConOut", &global, NULL, &size, &data);
+1015c1015
+< 		for (dp = (void *)data; !IsDevicePathEnd(dp);
+---
+> 		for (dp = (EFI_DEVICE_PATH*)(void *)data; !IsDevicePathEnd(dp);
+1110c1110
+< CHAR16		*idle_name = L"IdlePoweroff";
+---
+> CHAR16		*idle_name = (CHAR16*)(void*)L"IdlePoweroff";
+1272c1272
+< 	status = RS->GetVariable(L"OsIndicationsSupported", &global, NULL,
+---
+> 	status = RS->GetVariable((CHAR16*)(void*)L"OsIndicationsSupported", &global, NULL,
+1288c1288
+< 	status = RS->SetVariable(L"OsIndications", &global, osind_attrs,
+---
+> 	status = RS->SetVariable((CHAR16*)(void*)L"OsIndications", &global, osind_attrs,
