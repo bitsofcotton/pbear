@@ -1,0 +1,12 @@
+23c23
+< COPTS+=		-D_STANDALONE -nostdinc -fno-builtin
+---
+> COPTS+=		-D_STANDALONE -fno-builtin
+29c29
+< SRCS+=	efiboot.c efidev.c efipxe.c efirng.c
+---
+> SRCS+=	efiboot.cc efidev.c efipxe.c efirng.c
+81a82,84
+> efiboot.o:
+> 	clang++ -nostdlib -nodefaultlibs -nostartfiles -stdlib=libc++ -nostdinc++ -Wl,--start-group /usr/lib/libc++.a /usr/lib/libc++abi.a /usr/lib/clang/19/lib/libclang_rt.profile.a -Wl,--end-group -isystem /usr/include -I/sys -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I. -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
+> 
