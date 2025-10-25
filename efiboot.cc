@@ -1,8 +1,8 @@
 /* p-patch parts */
 extern "C" {
-void exit(int status) { while(1) ; }
-#include "efiboot.c.punched"
 #include <sys/types.h>
+void addbootarg(int, size_t, void *);
+#include "efiboot.c.punched"
 static inline void* malloc(size_t size) { return alloc(size); }
 static inline void* calloc(size_t nmemb, size_t size) { return malloc(nmemb * size); }
 static inline void free(void* p) { free(p, 1); return; }
@@ -11,16 +11,6 @@ static inline void free(void* p) { free(p, 1); return; }
 #define _P_BIT_  3
 #define _P_MLEN_ 21
 #define _P_PRNG_ 11
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <map>
-#include <algorithm>
-#include <cctype>
 #include "lieonn.hh"
 
 char gbuf[0x200];

@@ -38,36 +38,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #if !defined(_SIMPLELIN_)
 
 // N.B. external linkage.
-extern std::vector<std::string> words;
+#define assert (void)
+#define move
 
 #if defined(_OLDCPP_)
 #define move 
 #define emplace_back push_back
 #else
-using std::max;
-using std::min;
-using std::abs;
-using std::sqrt;
-using std::exp;
-using std::log;
-using std::isfinite;
-
-using std::move;
+//using std::move;
 #endif
-using std::swap;
-using std::pair;
-using std::make_pair;
-using std::vector;
-using std::map;
-
-using std::stringstream;
-using std::istringstream;
-using std::ifstream;
-using std::ofstream;
-using std::istream;
-using std::ostream;
-
-using std::string;
 #if defined(_OLDCPP_)
 static inline string to_string(const int& n) {
   stringstream ss;
@@ -80,17 +59,7 @@ static inline string to_string(const size_t& n) {
   return ss.str();
 }
 #else
-using std::to_string;
 #endif
-using std::cerr;
-using std::endl;
-using std::flush;
-using std::getline;
-
-using std::sort;
-using std::binary_search;
-using std::lower_bound;
-using std::unique;
 
 // --- N.B. start approximate Lie algebra on F_2^k. ---
 // N.B. start ifloat
@@ -330,47 +299,6 @@ public:
   inline                operator T    () const {
     return e[0];
   }
-  inline                operator double () const {
-    return double(e[0]) + double(e[1]) * pow(double(2), double(bits));
-  }
-  friend istream& operator >> (istream& is, DUInt<T,bits>& v) {
-    v ^= v;
-    // skip white spaces.
-    while(! is.eof() && ! is.bad()) {
-      const int buf(is.get());
-      if(buf != ' ' && buf != '\t') {
-        is.unget();
-        break;
-      }
-    }
-    while(! is.eof() && ! is.bad()) {
-      const int buf(is.get());
-      if('0' <= buf && buf <= '9') {
-        v <<= 4;
-        v |= DUInt<T,bits>(int(buf - '0'));
-      } else if('a' <= buf && buf <= 'f') {
-        v <<= 4;
-        v |= DUInt<T,bits>(int(buf - 'a' + 10));
-      } else {
-        is.unget();
-        break;
-      }
-    }
-    return is;
-  }
-  friend ostream& operator << (ostream& os, DUInt<T,bits> v) {
-    vector<char> buf;
-    while(v) {
-      buf.emplace_back("0123456789abcdef"[int(v) & 0x0f]);
-      v >>= 4;
-    }
-    if(buf.size()) {
-      for(int i = 0; 0 <= i && i < buf.size(); i ++)
-        os << char(buf[buf.size() - 1 - i]);
-      return os;
-    }
-    return os << '0';
-  }
 
   T e[2];
 };
@@ -416,14 +344,6 @@ public:
       return - double(work);
     }
     return double(dynamic_cast<const T&>(*this));
-  }
-  friend ostream& operator << (ostream& os, Signed<T,bits> v) {
-    const static Signed<T,bits> zero(0);
-    if(v < zero) {
-      os << '-';
-      v = - v;
-    }
-    return os << dynamic_cast<const T&>(v);
   }
 };
 
@@ -791,94 +711,6 @@ private:
   // XXX: these are NOT threadsafe on first call.
   const vector<SimpleFloat<T,W,bits,U> >& exparray()    const;
   const vector<SimpleFloat<T,W,bits,U> >& invexparray() const;
-  friend ostream& operator << (ostream& os, const SimpleFloat<T,W,bits,U>& v) {
-    static const U uzero(int(0));
-    if(isnan(v))
-      return os << "NaN ";
-    if(isinf(v))
-      return os << (const char*)(v.s & (1 << v.SIGN) ? "-" : "") << "Inf ";
-    return os << (const char*)(v.s & (1 << v.SIGN) ? "-" : "") << std::hex << T(v.m) << "*2^" << (const char*)(v.e < uzero ? "-" : "") << (v.e < uzero ? U(- v.e) : v.e) << " " << std::dec;
-  }
-  friend istream& operator >> (istream& is, SimpleFloat<T,W,bits,U>& v) {
-    const static SimpleFloat<T,W,bits,U> two(T(int(2)));
-                 T e(int(0));
-    bool mode(false);
-    bool sign(false);
-    bool fsign(false);
-    v = SimpleFloat<T,W,bits,U>(T(int(0)));
-    while(! is.eof() && ! is.bad()) {
-      const int buf(is.get());
-      if(buf != ' ' && buf != '\t' && buf != '\n') {
-        is.unget();
-        break;
-      }
-    }
-    while(! is.eof() && ! is.bad() ) {
-      const int buf(is.get());
-      switch(buf) {
-      case '-':
-        sign  = true;
-      case '+':
-        if(fsign)
-          throw "Wrong input";
-        fsign = true;
-        break;
-      case '*':
-        if(mode)
-          goto ensure;
-        if(sign)
-          v   = - v;
-        mode  = true;
-        sign  = false;
-        fsign = false;
-        if(is.get() != '2') {
-          is.unget();
-          goto ensure;
-        }
-        if(is.get() != '^') {
-          is.unget();
-          is.unget();
-          goto ensure;
-        }
-        break;
-      case '.':
-        throw "not implemented now";
-        break;
-      case '0': case '1': case '2': case '3': case '4':
-      case '5': case '6': case '7': case '8': case '9':
-        if(mode) {
-          e <<= int(4);
-          e  += T(int(buf - '0'));
-        } else {
-          v <<= int(4);
-          v  += SimpleFloat<T,W,bits,U>(T(int(buf - '0')));
-        }
-        fsign = true;
-        break;
-      case 'a': case'b': case 'c': case 'd': case 'e': case 'f':
-        if(mode) {
-          e <<= int(4);
-          e  += T(int(buf - 'a' + 10));
-        } else {
-          v <<= int(4);
-          v  += SimpleFloat<T,W,bits,U>(T(int(buf - 'a' + 10)));
-        }
-        fsign = true;
-        break;
-      default:
-        goto ensure;
-      }
-    }
-   ensure:
-    if(sign) {
-      if(mode)
-        v >>= U(e);
-      else
-        v = - v;
-    } else if(mode)
-      v <<= U(e);
-    return is;
-  }
 };
 
 template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::log() const {
@@ -1406,26 +1238,6 @@ public:
   inline const T& imag() const {
     return _imag;
   }
-  friend ostream& operator << (ostream& os, const Complex<T>& v) {
-    return os << v.real() << "+i" << v.imag();
-  }
-  friend istream& operator >> (istream& is, Complex<T>& v) {
-    is >> v._real;
-    if('+' != is.get()) {
-      is.unget();
-      goto ensure;
-    }
-    if('i' != is.get()) {
-      is.unget();
-      is.unget();
-      goto ensure;
-    }
-    is >> v._imag;
-    return is;
-   ensure:
-    v._imag = T(int(0));
-    return is;
-  }
   T _real;
   T _imag;
 };
@@ -1878,68 +1690,6 @@ public:
       res[i] = entity[entity.size() - 1 - i];
     return res;
   }
-  friend ostream& operator << (ostream& os, const SimpleVector<T>& v) {
-    SimpleVector<string> buf(v.size());
-    int M(0);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int i = 0; i < v.size(); i ++) {
-      stringstream ss;
-      ss << v[i];
-      buf[i] = ss.str();
-#if defined(_OPENMP)
-#pragma omp critical
-#endif
-      {
-        M = max(int(buf[i].size()), M);
-      }
-    }
-    os << v.size() << " : [";
-    for(int i = 0; i < buf.size(); i ++) {
-      for(int j = buf[i].size(); j <= M; j ++)
-        os << " ";
-      os << buf[i];
-      if(i < buf.size() - 1) os << ", ";
-    }
-    os << "]" << endl;
-    return os;
-  }
-  friend istream& operator >> (istream& is, SimpleVector<T>& v) {
-    int s;
-    is >> s;
-    v.resize(0);
-    if(s <= 0) return is;
-    v.resize(s);
-    int i(0);
-    for( ; i < v.size() && ! is.eof() && ! is.bad(); ) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == ':' || c == ',' || c == '[' || c == '\n') continue;
-      is.unget();
-      is >> v[i ++];
-    }
-    while(!is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == '\n') continue;
-      else if(c == ']') break;
-      is.unget();
-      cerr << "XXX SimpleVector<T>::operator >> (\']\')" << flush;
-      break;
-    }
-    while(!is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t') continue;
-      else if(c == '\n') break;
-      is.unget();
-      break;
-    }
-    if(i < v.size()) {
-      cerr << "XXX SimpleVector<T>::operator >> (index)" << flush;
-      for( ; i < v.size(); i ++)
-        v[i] = T(int(0));
-    }
-    return is;
-  }
 #if defined(_SIMPLEALLOC_)
   vector<T, SimpleAllocator<T> > entity;
 #else
@@ -2210,141 +1960,6 @@ public:
     // static const myfloat eps(std::numeric_limits<myfloat>::epsilon());
 #endif
     return eps;
-  }
-  friend ostream& operator << (ostream& os, const SimpleMatrix<T>& v) {
-    SimpleMatrix<string> buf(v.rows(), v.cols());
-    int M(0);
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static, 1)
-#endif
-    for(int i = 0; i < v.rows(); i ++)
-      for(int j = 0; j < v.cols(); j ++) {
-        stringstream ss;
-        ss << v(i, j);
-        buf(i, j) = ss.str();
-#if defined(_OPENMP)
-#pragma omp critical
-#endif
-        {
-          M = max(int(buf(i, j).size()), M);
-        }
-      }
-    os << "(" << buf.rows() << ", " << buf.cols() << ")" << "[" << endl;
-    for(int i = 0; i < buf.rows(); i ++) {
-      os << "[";
-      for(int j = 0; j < buf.cols(); j ++) {
-        for(int k = buf(i, j).size(); k <= M; k ++)
-          os << " ";
-        os << buf(i, j);
-        if(j < buf.cols() - 1) os << ", ";
-      }
-      os << "]";
-      if(i < buf.rows() - 1) os << ", ";
-      os << endl;
-    }
-    os << "]" << endl;
-    return os;
-  }
-  friend istream& operator >> (istream& is, SimpleMatrix<T>& v) {
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == '\n') continue;
-      else if(c == '(') break;
-      is.unget();
-      break;
-    }
-    int r, c;
-    is >> r;
-    if(r <= 0) return is;
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == '\n') continue;
-      else if(c == ',') break;
-      is.unget();
-      break;
-    }
-    is >> c;
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == '\n') continue;
-      else if(c == ')') break;
-      is.unget();
-      break;
-    }
-    if(c <= 0) return is;
-    v.resize(r, c);
-    int i(0);
-    int j(0);
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c == '\n') continue;
-      else if(c == '[') break;
-      is.unget();
-      break;
-    }
-    for( ; i < v.rows() && ! is.eof() && ! is.bad(); i ++) {
-      while(! is.eof() && ! is.bad()) {
-        const int c(is.get());
-        if(c == ' ' || c == '\t' || c == '\n') continue;
-        else if(c == '[') break;
-        is.unget();
-        break;
-      }
-      for(j = 0; j < v.cols() && ! is.eof() && ! is.bad(); j ++) {
-        is >> v(i, j);
-        if(v.cols() - 1 <= j) {
-          j ++;
-          break;
-        }
-        while(! is.eof() && ! is.bad()) {
-          const int c(is.get());
-          if(c == ' ' || c == '\t' || c == '\n') continue;
-          else if(c == ',') break;
-          is.unget();
-          break;
-        }
-      }
-      while(! is.eof() && ! is.bad()) {
-        const int c(is.get());
-        if(c == ' ' || c == '\t' || c == '\n') continue;
-        else if(c == ']') break;
-        is.unget();
-        break;
-      }
-      if(v.rows() - 1 <= i) {
-        i ++;
-        break;
-      }
-      while(! is.eof() && ! is.bad()) {
-        const int c(is.get());
-        if(c == ' ' || c == '\t' || c == '\n') continue;
-        else if(c == ',') break;
-        is.unget();
-        break;
-      }
-    }
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t' || c =='\n') continue;
-      else if(c == ']') break;
-      cerr << "XXX SimpleMatrix<T>::operator >> (\']\')" << flush;
-      is.unget();
-      break;
-    }
-    while(! is.eof() && ! is.bad()) {
-      const int c(is.get());
-      if(c == ' ' || c == '\t') continue;
-      else if(c == '\n') break;
-      is.unget();
-      break;
-    }
-    if(i < v.rows() || j < v.cols()) {
-      cerr << "XXX SimpleMatrix<T>::operator >> (index)" << flush;
-      for( ; i < v.rows(); i ++)
-        for( ; j < v.cols(); j ++)
-          v(i, j) = T(int(0));
-    }
-    return is;
   }
   // this isn't better idea for faster calculations.
 #if defined(_SIMPLEALLOC_)
@@ -2821,12 +2436,6 @@ template <typename T> static inline SimpleMatrix<complex(T) > dft(const int& siz
     string("-ld")
 #endif
   );
-  ifstream cache(file.c_str());
-  if(cache.is_open()) {
-    cache >> edft;
-    cache >> eidft;
-    cache.close();
-  } else {
     static const T Pi(T(4) * atan2(T(1), T(1)));
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
@@ -2839,13 +2448,6 @@ template <typename T> static inline SimpleMatrix<complex(T) > dft(const int& siz
         edft( i, j) = complexctor(T)(c,   s);
         eidft(i, j) = complexctor(T)(c, - s) / complexctor(T)(T(size));
       }
-    ofstream ocache(file.c_str());
-    if(ocache.is_open()) {
-      ocache << edft;
-      ocache << eidft;
-      ocache.close();
-    }
-  }
   return size0 < 0 ? eidft : edft;
 }
 
