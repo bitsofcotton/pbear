@@ -9,3 +9,6 @@ In fact, we should run away this with cpp98lieonn with many of the architectures
 
 However, this is only to ease our mind, not the things that infection go away even infected base systems.
 
+# Little Tips
+On some of the known hardwares, they have /usr/libexec/firmwarecheckers/eficheck or similar tools. So we need to check the integrity first.
+
