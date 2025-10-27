@@ -133,8 +133,7 @@ public:
   }
   inline DUInt<T,bits>& operator /= (const DUInt<T,bits>& src) {
     const static DUInt<T,bits> one(int(1));
-    if(! src)
-      throw "Zero division";
+    if(! src) return *this;
     if(! *this)
       return *this;
     DUInt<T,bits> cache(*this);
@@ -433,7 +432,6 @@ public:
       return *this;
     }
     if(! src.m) {
-      throw "Zero division";
       s |= 1 << NaN;
       return *this;
     }
@@ -491,11 +489,11 @@ public:
            ! (! m && ! src.m);
   }
   inline bool             operator <  (const SimpleFloat<T,W,bits,U>& src) const {
-    if((s | src.s) & (1 << NaN)) throw "compair NaN";
+    if((s | src.s) & (1 << NaN)) return false;
     const unsigned char s_is_minus(s & (1 << SIGN));
     if(s_is_minus ^ (src.s & (1 << SIGN))) return s_is_minus;
     if(s & (1 << INF)) {
-      if(src.s & (1 << INF)) throw "compair INF";
+      if(src.s & (1 << INF)) return false;
       return s_is_minus;
     }
     if(src.s & (1 << INF)) return ! s_is_minus;
@@ -526,11 +524,11 @@ public:
   }
   inline                  operator T    () const {
     SimpleFloat<T,W,bits,U> deci(*this);
-    if(deci.s & (1 << INF)) throw "Inf to convert int";
-    if(deci.s & (1 << NaN)) throw "NaN to convert int";
+    if(deci.s & (1 << INF)) return T(int(0));
+    if(deci.s & (1 << NaN)) return T(int(0));
     if(! deci.m) return T(int(0));
     if(U(bits) <= deci.e || (uzero() < deci.e && (deci.m << int(deci.e)) >> int(deci.e) != deci.m))
-      throw "Overflow to convert int.";
+      return T(int(0));
     if(deci.e <= - U(bits)) return T(int(0));
     if(     deci.e < uzero()) deci.m >>= - int(deci.e);
     else if(uzero() < deci.e) deci.m <<=   int(deci.e);
@@ -689,7 +687,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
   const static SimpleFloat<T,W,bits,U> einv(one() / one().exp());
   const static SimpleFloat<T,W,bits,U> one_einv(one() + einv);
   if((s & (1 << SIGN)) && m)
-    throw "Negative log";
+    return *this;
   if(s & ((1 << INF) | (1 << NaN)))
     return *this;
   if(! m) {
@@ -1035,7 +1033,7 @@ template <typename T, typename W, int bits, typename U> static inline SimpleFloa
 template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> pow(const SimpleFloat<T,W,bits,U>& src, const SimpleFloat<T,W,bits,U>& dst) {
   if(! dst) {
     if(! src)
-      throw "0^0";
+      return T(int(0)) / T(int(0));
     return dst.one();
   }
   return exp(log(src) * dst);
@@ -1952,7 +1950,7 @@ template <typename T> inline T SimpleMatrix<T>::determinant(const bool& nonzero)
 }
 
 template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> other) const {
-  if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) throw "SimpleMatrix<T>::Solve error";
+  if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) return SimpleVector<T>();
   SimpleMatrix<T> work(*this);
   for(int i = 0; i < entity.size(); i ++) {
     int xchg = i;
@@ -1992,7 +1990,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector
 }
 
 template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solveN(SimpleVector<T> other) const {
-  if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) throw "SimpleMatrix<T>::SolveN error";
+  if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) return SimpleVector<T>();
   assert(0 && "SimpleMatrix<T>::solveN stub");
   SimpleVector<T> res;
   return res;
@@ -2302,23 +2300,6 @@ template <typename T> static inline SimpleMatrix<T> exp01(const SimpleMatrix<T>&
     res += buf;
     buf *= m / T(i + 1);
   }
-  return res;
-}
-
-template <typename T> static inline SimpleMatrix<T> exp(const SimpleMatrix<T>& m) {
-  const T p0(absceil(sqrt(norm2M(m))));
-#if defined(_FLOAT_BITS_) || defined(_PERSISTENT_)
-  // XXX: myuint p(p0.operator myint());
-  myuint p(p0);
-#else
-  myuint p(p0);
-#endif
-  if(T(myint(int(1))) < abs(p0 - T(myint(p)))) throw "too large abs num in exp matrix";
-  SimpleMatrix<T> mm(exp01(m / T(myint(p))));
-  SimpleMatrix<T> res(m);
-  for(res.I(); p; mm *= mm, p >>= 1)
-    if(bool(p & myuint(int(1))))
-      res *= mm;
   return res;
 }
 

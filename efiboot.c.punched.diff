@@ -74,15 +74,22 @@
 < 		for (dp = (void *)data; !IsDevicePathEnd(dp);
 ---
 > 		for (dp = (EFI_DEVICE_PATH*)(void *)data; !IsDevicePathEnd(dp);
-1110c1110
+1109,1110c1109
+< #ifdef IDLE_POWEROFF
 < CHAR16		*idle_name = L"IdlePoweroff";
 ---
 > CHAR16		*idle_name = (CHAR16*)(void*)L"IdlePoweroff";
-1272c1272
+1158d1156
+< #endif /* IDLE_POWEROFF */
+1245d1242
+< #ifdef IDLE_POWEROFF
+1261d1257
+< #endif /* IDLE_POWEROFF */
+1272c1268
 < 	status = RS->GetVariable(L"OsIndicationsSupported", &global, NULL,
 ---
 > 	status = RS->GetVariable((CHAR16*)(void*)L"OsIndicationsSupported", &global, NULL,
-1288c1288
+1288c1284
 < 	status = RS->SetVariable(L"OsIndications", &global, osind_attrs,
 ---
 > 	status = RS->SetVariable((CHAR16*)(void*)L"OsIndications", &global, osind_attrs,

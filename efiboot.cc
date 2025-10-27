@@ -6,6 +6,7 @@ void addbootarg(int, size_t, void *);
 static inline void* malloc(size_t size) { return alloc(size); }
 static inline void* calloc(size_t nmemb, size_t size) { return malloc(nmemb * size); }
 static inline void free(void* p) { free(p, 1); return; }
+int atexit(void (*function)(void)) { ; }
 }
 
 #define assert (void)

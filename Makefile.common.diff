@@ -8,5 +8,5 @@
 > SRCS+=	efiboot.cc efidev.c efipxe.c efirng.c
 81a82,84
 > efiboot.o:
-> 	clang++ -nostdlib -nodefaultlibs -nostartfiles -stdlib=libc++ -nostdinc++ -Wl,--start-group -DHEAP_LIMIT=${EFI_HEAP_LIMIT} /usr/lib/libc++.a /usr/lib/libc++abi.a /usr/lib/clang/19/lib/libclang_rt.profile.a -Wl,--end-group -isystem /usr/include -D_FLOAT_BITS_=32 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
+> 	clang++ -nostdlib -nodefaultlibs -nostartfiles -stdlib=libc++ -nostdinc++ -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -msoft-float -mno-sse2 -mno-sse -mno-3dnow -mno-mmx -fno-omit-frame-pointer  -Wl,--start-group -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES -DHEAP_LIMIT=${EFI_HEAP_LIMIT} /usr/lib/libc++.a /usr/lib/libc++abi.a /usr/lib/clang/19/lib/libclang_rt.profile.a -Wl,--end-group -isystem /usr/include -D_FLOAT_BITS_=32 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
 > 
