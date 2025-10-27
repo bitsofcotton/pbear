@@ -3223,6 +3223,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       reform[i][j].entity.reserve(in.size() - horizontal * horizontal + 1);
   }
   for(int i = 0; i <= in.size() - horizontal * horizontal; i ++) {
+    printf("%d, %d, l0\n", i, in.size() - horizontal * horizontal + 1);
     vector<vector<vector<T> > > les;
     les.resize(in[0].size());
     for(int j = 0; j < les.size(); j ++) {
@@ -3230,11 +3231,17 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       for(int k = 0; k < les[j].size(); k ++)
         les[j][k].reserve(horizontal * horizontal);
     }
+    printf("%d, %d, l1\n", i, in.size() - horizontal * horizontal + 1);
     for(int j = i; j < i + horizontal * horizontal; j ++)
-      for(int k = 0; k < les.size(); k ++)
-        les[k][int(binMargin<T>(in[j][k]) * T(horizontal))].emplace_back(
-          in[j][k]);
+      for(int k = 0; k < les.size(); k ++) {
+        // XXX: gpe here on binMargin call.
+        const int idx(binMargin<T>(in[j][k]) * T(horizontal) );
+        if(0 <= idx && idx < les[k].size());
+          les[k][idx].emplace_back(in[j][k]);
+      }
+    printf("%d, %d, l2\n", i, in.size() - horizontal * horizontal + 1);
     for(int k = 0; k < in[0].size(); k ++) {
+      printf("%d, %d\n", k, in[0].size());
       int Mtot(0);
       for(int j = 0; j < horizontal; j ++)
         Mtot = max(Mtot, int(les[k][j].size()));
@@ -3244,7 +3251,10 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
         reform[j][k].entity.emplace_back(binMargin<T>(sum / T(Mtot) *
           T(horizontal) / T(j + 1) ) );
       }
+      // XXX: somehow, freeze here.
+      printf("%d, %d\n", k, in[0].size());
     }
+    printf("%d, %d, l3\n", i, in.size() - horizontal * horizontal + 1);
   }
 #if defined(_SIMPLEALLOC_)
   vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > res;
@@ -3267,22 +3277,21 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
     vector<SimpleVector<T> > p1;
     vector<SimpleVector<T> > p2;
 #endif
+    printf("-1.0\n\0");
     p0 = pRS<T, nprogress>(
       reform[i], string(" L(0/3, ") + to_string(i) + string("/") +
         to_string(reform.size()) + strloop);
+    printf("-1.1\n\0");
     p1 = logscale<T>(pRS<T, nprogress>(
       expscale<T>(reform[i]), string(" L(1/3, ") + to_string(i) +
         string("/") + to_string(reform.size()) + strloop) );
+    printf("-1.2\n\0");
     p2 = expscale<T>(pRS<T, nprogress>(
       logscale<T>(reform[i]), string(" L(2/3, ") + to_string(i) +
         string("/") + to_string(reform.size()) + strloop) );
-    printf("-1 %d %d %d\n\0", p0.size(), p1.size(), p2.size());
     for(int i = 0; i < p0.size(); i ++) {
-      printf("0 %d %d %d\n\0", p0[i].size(), p1[i].size(), p2[i].size());
       p0[i] += p1[i];
-      printf("1\n\0");
       p0[i] += p2[i];
-      printf("2\n\0");
       p0[i] *= T(i + 1) / T(horizontal) / T(int(3));
     }
     printf("-1\n\0");
@@ -3470,6 +3479,8 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
       for(int j = 0; j < r[0].size(); j ++)
         sum += int(sgn<T>(r[0][j] *
           unOffsetHalf<T>(in[(i - int(r.size())) / 2 + in.size()][j]) ));
+      int stat(T(sum) / T(r[0].size()) * T(int(10000)) );
+      printf("%d%c%d%c\n\0", stat / 100, '.', stat % 100, '\%');
     }
   }
   return r[0];
@@ -3498,9 +3509,10 @@ template <typename T, int nprogress> static inline SimpleVector<T> pEachPRNG(con
 #endif
         - unOffsetHalf<T>(in[j][i]) : unOffsetHalf<T>(in[j][i]) );
     }
+    printf("3\n\0");
     SimpleVector<T> w(pAppendMeasure<T, 0>(work, string(" ") +
       to_string(i) + string("/") + to_string(in[0].size()) + strloop) );
-    printf("5\n\0");
+    printf("4\n\0");
     for(int j = 0; j < w.size(); j ++) out[i] += w[j];
     int sign(0);
     for(int j = 0; j < work[0].size(); j ++) sign += 
