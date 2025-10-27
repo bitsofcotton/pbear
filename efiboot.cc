@@ -15,16 +15,13 @@ int atexit(void (*function)(void)) { ; }
 #define _P_MLEN_ 21
 #define _P_PRNG_ 11
 #define _SIMPLEALLOC_ 64
-#define M_ALLOC 1024
+#define M_ALLOC 16384
 #include "cppimport.hh"
 #include "lieonn.hh"
 typedef myfloat num_t;
 
-char gbuf[0x200];
-
-num_t next(const num_t& x) {
+num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& f) {
   // lieonn p2/p chain.
-  static idFeeder<SimpleVector<num_t> > f(_P_MLEN_ / 2 + 1);
   SimpleVector<num_t> v(1);
   v[0] = x;
   f.next(v);
@@ -36,72 +33,82 @@ num_t next(const num_t& x) {
 int ctr(0);
 int pctr(0);
 
-void nextprng() {
-  num_t n(next(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) / num_t(int(2))));
-  if(num_t(int(0)) < next(n)) pctr ++;
+num_t nextprng(idFeeder<SimpleVector<num_t> >& f, const num_t& b) {
+  num_t nb(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) / num_t(int(2)) );
+  num_t n(next(nb, f));
+  if(num_t(int(0)) < n * b) pctr ++;
   if(n != num_t(int(0))) ctr ++;
+  return nb;
 }
 
-void nextstr(const char* x) {
+num_t nextstr(const char* x, idFeeder<SimpleVector<num_t> >& f, const num_t& b) {
   num_t nx;
-  num_t n(next(nx));
-  if(num_t(int(0)) < n) pctr ++;
+  num_t n(next(nx, f));
+  if(num_t(int(0)) < n * b) pctr ++;
   if(n != num_t(int(0))) ctr ++;
+  return nx;
 }
 
-void nextkey(const char* x) {
+num_t nextkey(const char* x, idFeeder<SimpleVector<num_t> >& f, const num_t& b) {
+  num_t nb;
   while(*(x ++) != '\0') {
     if(! ('a' <= *x && *x <= 'z')) continue;
-    num_t n(next(num_t(*x - 'a') / num_t('z' - 'a') - num_t(int(1)) / num_t(int(2)) ));
-    if(num_t(int(0)) < next(n)) pctr ++;
+    nb = num_t(*x - 'a') / num_t('z' - 'a') - num_t(int(1)) / num_t(int(2));
+    num_t n(next(nb, f));
+    if(num_t(int(0)) < n * b) pctr ++;
     if(n != num_t(int(0))) ctr ++;
   }
+  return nb;
 }
 
 void simplealloc_init() {
+  last    = reinterpret_cast<size_t>(malloc(4*1024*1024));
+  lastptr = 0;
   return;
 }
 
 extern "C" {
   EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab) {
+    ST = systab;
+    BS = ST->BootServices;
+    RS = ST->RuntimeServices;
+    IH = image;
     efi_video_init();
     efi_heap_init();
     simplealloc_init();
-    const char* modemsg = "mode? (n for number | r for prng | k for keyboard [a-z]\r\n\0";
-    const int dev(0);
-    for(int i = 0; modemsg[i]; i ++) efi_cons_putc(dev, modemsg[i]);
-    int m(efi_cons_getc(dev));
-    for( ; efi_cons_getc(dev) != '\n'; );
-    while(true) {
+    printf("mode? (n for number | r for prng | k for keyboard [a-z]\r\n\0");
+    //int m(efi_cons_getc(0));
+    int m('r');
+    int lc;
+    idFeeder<SimpleVector<num_t> > f(_P_MLEN_ / 2 + 1);
+    num_t b;
+    for(lc = 0; ; lc ++) {
       char buf[0x200];
       int i;
       switch(m) {
       case 'n':
+/*
         for(i = 0; i < 0x1ff; i ++)
           if('\n' != (buf[i] = efi_cons_getc(dev) )) break;
+*/
         buf[i] = '\0';
-        nextstr(buf);
+        b = nextstr(buf, f, b);
         break;
       case 'r':
-        nextprng();
+        b = nextprng(f, b);
         break;
       case 'k':
+/*
         for(i = 0; i < 0x1ff; i ++)
           if('\n' != (buf[i] = efi_cons_getc(dev) )) break;
-        nextkey(buf);
+*/
+        b = nextkey(buf, f, b);
         break;
       }
       int per10000(num_t(pctr) / num_t(ctr) * num_t(int(10000)));
-      efi_cons_putc(dev, (per10000 / 1000) % 10);
-      efi_cons_putc(dev, (per10000 / 100 ) % 10);
-      efi_cons_putc(dev, '.');
-      efi_cons_putc(dev, (per10000 / 10  ) % 10);
-      efi_cons_putc(dev, (per10000       ) % 10);
-      efi_cons_putc(dev, '\%');
-      efi_cons_putc(dev, '\r');
-      efi_cons_putc(dev, '\n');
+      printf("%d: %d%c%d\r\n\0", lc, (per10000 / 100 ) % 100, '.', per10000 % 100);
     }
-    /* NOT REACHED */
+    // NOT REACHED
   }
 }
 

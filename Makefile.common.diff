@@ -1,7 +1,3 @@
-23c23
-< COPTS+=		-D_STANDALONE -nostdinc -fno-builtin
----
-> COPTS+=		-D_STANDALONE -fno-builtin
 29c29
 < SRCS+=	efiboot.c efidev.c efipxe.c efirng.c
 ---
