@@ -8,10 +8,16 @@ static inline void* calloc(size_t nmemb, size_t size) { return malloc(nmemb * si
 static inline void free(void* p) { free(p, 1); return; }
 }
 
+#define assert (void)
+
 #define _P_BIT_  3
 #define _P_MLEN_ 21
 #define _P_PRNG_ 11
+#define _SIMPLEALLOC_ 64
+#define M_ALLOC 1024
+#include "cppimport.hh"
 #include "lieonn.hh"
+typedef myfloat num_t;
 
 char gbuf[0x200];
 
@@ -36,16 +42,14 @@ void nextprng() {
 }
 
 void nextstr(const char* x) {
-  istringstream iss(x);
   num_t nx;
-  iss >> nx;
   num_t n(next(nx));
   if(num_t(int(0)) < n) pctr ++;
   if(n != num_t(int(0))) ctr ++;
 }
 
 void nextkey(const char* x) {
-  whie(*(x ++) != '\0') {
+  while(*(x ++) != '\0') {
     if(! ('a' <= *x && *x <= 'z')) continue;
     num_t n(next(num_t(*x - 'a') / num_t('z' - 'a') - num_t(int(1)) / num_t(int(2)) ));
     if(num_t(int(0)) < next(n)) pctr ++;
@@ -62,8 +66,9 @@ extern "C" {
     efi_video_init();
     efi_heap_init();
     simplealloc_init();
-    string modemsg("mode? (n for number | r for prng | k for keyboard [a-z]\r\n");
-    for(int i = 0; i < modemsg.size(); i ++) efi_cons_putc(dev, modemsg[i]));
+    const char* modemsg = "mode? (n for number | r for prng | k for keyboard [a-z]\r\n\0";
+    const int dev(0);
+    for(int i = 0; modemsg[i]; i ++) efi_cons_putc(dev, modemsg[i]);
     int m(efi_cons_getc(dev));
     for( ; efi_cons_getc(dev) != '\n'; );
     while(true) {
