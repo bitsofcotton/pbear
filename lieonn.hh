@@ -579,9 +579,7 @@ public:
   const SimpleFloat<T,W,bits,U> halfpi() const {
     return SimpleFloat<T,W,bits,U>(quatpi() << U(1));
   }
-  const SimpleFloat<T,W,bits,U> quatpi() const {
-    return SimpleFloat<T,W,bits,U>(one().atan());
-  }
+  const SimpleFloat<T,W,bits,U> quatpi() const;
   const SimpleFloat<T,W,bits,U> twopi()  const {
     return SimpleFloat<T,W,bits,U>(quatpi() << U(3));
   }
@@ -631,6 +629,16 @@ private:
   const vector<SimpleFloat<T,W,bits,U> >& exparray()    const;
   const vector<SimpleFloat<T,W,bits,U> >& invexparray() const;
 };
+
+SimpleFloat<uint32_t, uint64_t, _FLOAT_BITS_, int32_t >* sf_qpi;
+template <typename T, typename W, int bits, typename U> const SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::quatpi() const {
+  if(! sf_qpi) {
+    sf_qpi = SimpleAllocator<SimpleFloat<T,W,bits,U> >().allocate(1);
+    ::new ((void*)sf_qpi) SimpleFloat<T,W,bits,U>();
+    * sf_qpi = one().atan();
+  }
+  return * sf_qpi;
+}
 
 template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::log() const {
   const SimpleFloat<T,W,bits,U> einv(one() / one().exp());
@@ -1247,8 +1255,8 @@ template <typename T> using complexC = Complex<T>;
 unsigned long long last;
 unsigned long long lastptr;
 unsigned long long sam_upper;
-unsigned long long *v_alloc __attribute__ ((packed));
-bool   *in_use __attribute__ ((packed));
+unsigned long long *v_alloc;
+int *in_use;
 // N.B. around 20% endurance, so making here into binary tree can reduce some.
 template <typename T> class SimpleAllocator {
 public:
@@ -1263,9 +1271,9 @@ public:
     n  = (n + _SIMPLEALLOC_ - 1) / _SIMPLEALLOC_ * _SIMPLEALLOC_;
     if(M_ALLOC <= lastptr) { printf("pool full.\n"); for(;;) ; }
     v_alloc[lastptr] = n;
-    in_use[lastptr ++] = true;
+    in_use[lastptr ++] = 1;
     last += n;
-    if(! (last < sam_upper)) { printf("memory full\n"); for(;;) ; }
+    if(! (last < sam_upper)) { printf("memory full\n"); for(;;) ;}
     return reinterpret_cast<T*>(last - n);
   }
   inline void deallocate(T* p, size_t n) {
@@ -1277,7 +1285,8 @@ public:
       if((work -= v_alloc[i]) == pp) break;
       flag = flag || in_use[i];
     }
-    in_use[i] = false;
+    if(work != pp) { printf("free bug\n"); for(;;) ; }
+    in_use[i] ^= in_use[i];
     if(! flag) {
       last = pp;
       lastptr = i;
@@ -1971,7 +1980,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
       this->setCol(j, this->col(j) - orth * this->col(j).dot(orth) / n2);
     if(T(int(0)) < fidx[idx].first) {
       const SimpleVector<T> on(projectionPt(one));
-      for(int j = 0; j < this->cols(); j ++) if(fidx[j].first != T(int(0)) ) fidx[j] = make_pair(abs(on[j]), j);
+      for(int j = 0; j < this->cols(); j ++) if(fidx[j].first != T(int(0)) ) { fidx[j].first = abs(on[j]); fidx[j].second = j; }
     }
     i ++;
   }
@@ -2562,10 +2571,16 @@ template <typename T, T (*f)(const SimpleVector<T>&)> static inline T invNext(co
 }
 
 // N.B. some of the essential point hack.
+myfloat* npole_M;
 template <typename T, T (*f)(const SimpleVector<T>&)> static inline T northPoleNext(const SimpleVector<T>& in) {
   const T zero(int(0));
   const T one(int(1));
-  const T M(atan(one / sqrt(SimpleMatrix<T>().epsilon())));
+  if(! npole_M) {
+    npole_M = SimpleAllocator<T>().allocate(1);
+    ::new ((void*)npole_M) T();
+    * npole_M = atan(one / sqrt(SimpleMatrix<T>().epsilon()));
+  }
+  const T& M(* npole_M);
   SimpleVector<T> ff(in);
   for(int i = 0; i < in.size(); i ++)
     if(! isfinite(in[i]) || in[i] == zero) return in[in.size() - 1];
@@ -3132,7 +3147,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
     }
     if(p0.size() < res.size()) res.resize(p0.size());
     for(int i = 0; i < res.size(); i ++) res[i] += p0[i];
-    efi_cons_putc(0, 'L');
+    // efi_cons_putc(0, 'L');
   }
   for(int i = 0; i < res.size(); i ++) res[i] /= T(int(reform.size()));
   return res;
@@ -3193,7 +3208,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pPolish(const vect
     resp[i] += resm[i];
     resp[i] /= T(int(2));
   }
-  efi_cons_putc(0, 'r');
+  // efi_cons_putc(0, 'r');
   return resp;
 }
 
@@ -3214,6 +3229,7 @@ template <typename T, int nprogress> static inline vector<SimpleVector<T> > pGua
     bitsG<T, true>(in.entity, abs(_P_BIT_)), strloop) );
   for(int i = 0; i < res.size(); i ++)
     res[i] = bitsG<T, true>(offsetHalf<T>(res[i]), - abs(_P_BIT_) );
+  efi_cons_putc(0, 'g');
   return res;
 }
 

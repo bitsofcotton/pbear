@@ -14,7 +14,7 @@ public:
   inline vector<T, _Allocator>(const int s) { initmem(); resize(s); }
   inline vector<T, _Allocator>(const vector<T, _Allocator>& x) { initmem(); *this = x; }
   inline vector<T, _Allocator>(vector<T, _Allocator>&& x) { initmem(); *this = x; }
-  inline ~vector<T, _Allocator>() { if(sz_alloc || reinterpret_cast<size_t>(entity) ) alloc.deallocate(entity, sz_alloc); initmem(); }
+  inline ~vector<T, _Allocator>() { for(int i = 0; i < sz_alloc; i ++) entity[i].~T(); if(sz_alloc || reinterpret_cast<size_t>(entity) ) alloc.deallocate(entity, sz_alloc); initmem(); }
   inline void reserve(const size_t& nsz) {
     if(nsz < sz) return;
     if(! entity || sz_alloc != nsz) {
@@ -42,11 +42,13 @@ public:
     entity[sz ++] = obj;
   }
   inline vector<T, _Allocator>& operator = (const vector<T, _Allocator>& x) {
+    if(! size() && ! x.size()) return *this;
     if(size() != x.size()) resize(x.size());
     for(int i = 0; i < x.size(); i ++) entity[i] = x.entity[i];
     return *this;
   }
   inline vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
+    if(! size() && ! x.size()) return *this;
     if(sz_alloc || reinterpret_cast<size_t>(entity)) alloc.deallocate(entity, sz_alloc);
     sz       = x.sz;
     sz_alloc = x.sz_alloc;
