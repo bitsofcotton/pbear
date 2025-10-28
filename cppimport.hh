@@ -20,9 +20,9 @@ public:
     if(! entity || sz_alloc != nsz) {
       T* nentity(alloc.allocate(nsz));
       for(int i = 0; i < nsz; i ++) ::new ((void*)(&nentity[i])) T();
-      // for(char* ptr(reinterpret_cast<char*>(nentity)); ptr < reinterpret_cast<char*>(&nentity[nsz + 1]); ++ ptr) *ptr = 0;
       if(entity) {
-        for(int i = 0; i < sz; i ++) nentity[i] = entity[i];
+        for(int i = 0; i < sz; i ++) nentity[i] = move(entity[i]);
+        for(int i = 0; i < sz_alloc; i ++) entity[i].~T();
         alloc.deallocate(entity, sz_alloc);
       }
       entity = nentity;

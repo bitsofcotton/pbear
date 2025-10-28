@@ -3119,8 +3119,8 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
 #else
   vector<SimpleVector<T> > res;
 #endif
-  res.resize(in.size(), SimpleVector<T>(in[0].size()).O());
   for(int i = 0; i < reform.size(); i ++) {
+    efi_cons_putc(0, 'L');
     T n2(int(0));
     for(int j = 0; j < reform[i].size(); j ++)
       n2 += reform[i][j].dot(reform[i][j]);
@@ -3144,9 +3144,8 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       p0[i] += p2[i];
       p0[i] *= T(i + 1) / T(horizontal) / T(int(3));
     }
-    if(p0.size() < res.size()) res.resize(p0.size());
-    for(int i = 0; i < res.size(); i ++) res[i] += p0[i];
-    // efi_cons_putc(0, 'L');
+    if(! res.size()) res = move(p0);
+    else for(int i = 0; i < res.size(); i ++) res[i] += p0[i];
   }
   for(int i = 0; i < res.size(); i ++) res[i] /= T(int(reform.size()));
   return res;
@@ -3207,7 +3206,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pPolish(const vect
     resp[i] += resm[i];
     resp[i] /= T(int(2));
   }
-  // efi_cons_putc(0, 'r');
+  efi_cons_putc(0, 'r');
   return resp;
 }
 
@@ -3349,7 +3348,6 @@ template <typename T, int nprogress> static inline SimpleVector<T> pEachPRNG(con
   out.resize(in[0].size());
   out.O();
   for(int i = 0; i < in[0].size(); i ++) {
-    printf("%d, %d\n", last, lastptr);
     vector<SimpleVector<T> > work;
     work.resize(in.size());
     for(int j = 0; j < in.size(); j ++) {
