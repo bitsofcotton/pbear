@@ -57,10 +57,8 @@ public:
       *this = - *this;
   }
   inline DUInt(const DUInt<T,bits>& src) { *this = src; }
-#if !defined(_OLDCPP_)
   inline DUInt(const DUInt<DUInt<T,bits>,bits*2>& src) { *this = src; }
   inline DUInt(DUInt<T,bits>&& src) { *this = src; }
-#endif
   inline ~DUInt() { ; }
   inline DUInt<T,bits>& operator ++ () {
     ++ e[0];
@@ -226,7 +224,6 @@ public:
     e[0] = src.e[0]; e[1] = src.e[1];
     return *this;
   }
-#if !defined(_OLDCPP_)
   inline DUInt<T,bits>& operator =  (const DUInt<DUInt<T,bits>,bits*2>& src) {
     return *this = src.e[0];
   }
@@ -234,7 +231,6 @@ public:
     e[0] = move(src.e[0]); e[1] = move(src.e[1]);
     return *this;
   }
-#endif
   inline bool           operator <  (const DUInt<T,bits>& src) const {
     if(e[1]) return e[1] != src.e[1] ? e[1] < src.e[1] : e[0] < src.e[0];
     return bool(src.e[1]) || e[0] < src.e[0];
@@ -337,9 +333,7 @@ public:
     ensureFlag();
   }
   inline SimpleFloat(const SimpleFloat<T,W,bits,U>& src) { *this = src; }
-#if !defined(_OLDCPP_)
   inline SimpleFloat(SimpleFloat<T,W,bits,U>&& src) { *this = src; }
-#endif
   inline ~SimpleFloat() { ; }
   inline SimpleFloat<T,W,bits,U>  operator -  () const {
     SimpleFloat<T,W,bits,U> work(*this);
@@ -469,14 +463,12 @@ public:
     m = src.m;
     return *this;
   }
-#if !defined(_OLDCPP_)
   inline SimpleFloat<T,W,bits,U>& operator =  (SimpleFloat<T,W,bits,U>&& src) {
     s = move(src.s);
     e = move(src.e);
     m = move(src.m);
     return *this;
   }
-#endif
   inline bool             operator == (const SimpleFloat<T,W,bits,U>& src) const {
     return ! (*this != src);
   }
@@ -1000,7 +992,6 @@ public:
     _real = real; _imag = imag;
   }
   inline Complex(const Complex<T>& s) { *this = s; }
-#if !defined(_OLDCPP_)
   inline Complex(Complex<T>&& s) { *this = s; }
   inline Complex(T&& real) {
     const T zero(0);
@@ -1011,7 +1002,6 @@ public:
     _real = move(real);
     _imag = move(imag);
   }
-#endif
   inline ~Complex() { ; }
   inline Complex<T>  operator ~  ()                    const {
     return Complex<T>(  _real, - _imag);
@@ -1115,13 +1105,11 @@ public:
     _imag = s._imag;
     return *this;
   }
-#if !defined(_OLDCPP_)
   inline Complex<T>& operator =  (Complex<T>&& s) {
     _real = move(s._real);
     _imag = move(s._imag);
     return *this;
   }
-#endif
   inline T&          operator [] (const size_t& i) {
     if(i) return _imag;
     return _real;
@@ -1132,16 +1120,9 @@ public:
   inline             operator T    () const {
     return this->_real;
   }
-#if defined(_OLDCPP_)
   const Complex<T> i() const {
     return Complex<T>(Complex<T>(T(int(0)), T(int(1))));
   }
-#else
-  const Complex<T>& i() const {
-    const Complex<T> I(Complex<T>(T(int(0)), T(int(1))));
-    return I;
-  }
-#endif
   inline T  abs() const {
     return sqrt(_real * _real + _imag * _imag);
   }
@@ -1224,149 +1205,38 @@ template <typename T> static inline T ccot(const T& s) {
   return Complex<T>(T(int(1))) / ctan(s);
 }
 
-#if defined(_PERSISTENT_)
-# if ! defined(_FLOAT_BITS_)
-    typedef DUInt<size_t, sizeof(size_t) * 8> myuint;
-    typedef Signed<myuint, sizeof(size_t) * 16> myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, sizeof(size_t) * 16>, sizeof(size_t) * 16, myint> myfloat;
-# elif _FLOAT_BITS_ == 16
-    typedef DUInt<uint8_t, 8> myuint;
-    typedef Signed<myuint, 16> myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 16>, 16, myint> myfloat;
-# elif _FLOAT_BITS_ == 32
-    typedef DUInt<uint16_t, 16> myuint;
-    typedef Signed<myuint, 32> myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 32>, 32, myint> myfloat;
-# elif _FLOAT_BITS_ == 64
-    typedef DUInt<uint32_t, 32> myuint;
-    typedef Signed<myuint, 64> myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 64>, 64, myint> myfloat;
-# elif _FLOAT_BITS_ == 128
-    typedef DUInt<uint64_t, 64> myuint;
-    typedef Signed<myuint, 128> myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 128>, 128, myint> myfloat;
-# else
-#   error cannot handle float
-# endif
-#else
-# if !defined(_FLOAT_BITS_)
-  //
-#  if defined(_OLDCPP_)
-    // N.B. too old c++ compilers we don't compile this should have:
-    //  * int32_t in operator ++ need to be replaced into int in this;
-    //  * reference type syntax is a little stricter.
-    //  * they don't admit variable definition in 'for' directive.
-    //  * same name different type template is restricted.
-    //  * in template struct::type isn't allowed.
-    //  * math.h definitions isn't included so we should implement them.
-    //  * random() isn't defined, use rand() instead of them;
-    //  * operator >> type match is also a little stricter.
-    //  * template in template is not admitted, so we should use another ones.
-    //  typedef unsigned myuint;
-    //  typedef int myint;
-    typedef uint32_t myuint;
-    typedef int32_t myint;
-    typedef double myfloat;
-#   if defined(isfinite)
-#    undef isfinite
-#   endif
-#   define isfinite(x) (! (isnan(x) || isinf(x)))
-#  else
-    typedef uint64_t myuint;
-    typedef int64_t  myint;
-    // XXX: typedef long double myfloat;
-    typedef double myfloat;
-#  endif
-    
-    static inline myfloat absfloor(const myfloat& x) {
-      if(myfloat(0) <= x) return floor(x);
-      return - floor(- x);
-    }
-    static inline myfloat absceil(const myfloat& x) {
-      if(myfloat(0) <= x) return ceil(x);
-      return - ceil(- x);
-    }
-# elif _FLOAT_BITS_ == 8
-    typedef uint8_t myuint;
-    typedef int8_t  myint;
-    typedef SimpleFloat<myuint, uint16_t, 8, myint> myfloat;
-# elif _FLOAT_BITS_ == 16
-    typedef uint16_t myuint;
-    typedef int16_t  myint;
-    typedef SimpleFloat<myuint, uint32_t, 16, myint> myfloat;
-# elif _FLOAT_BITS_ == 32
+#if _FLOAT_BITS_ == 32
     typedef uint32_t myuint;
     typedef int32_t  myint;
     typedef SimpleFloat<myuint, uint64_t, 32, myint> myfloat;
 //    typedef SimpleFloat<myuint, DUInt<uint32_t, 32>, 32, myint> myfloat;
-# elif _FLOAT_BITS_ == 64
+#elif _FLOAT_BITS_ == 64
     typedef uint64_t myuint;
     typedef int64_t  myint;
     typedef SimpleFloat<myuint, unsigned __int128, 64, myint> myfloat;
-# elif _FLOAT_BITS_ == 128
+#elif _FLOAT_BITS_ == 128
     typedef DUInt<uint64_t, 64> uint128_t;
     typedef Signed<uint128_t, 128> int128_t;
     typedef uint128_t myuint;
     typedef int128_t  myint;
     typedef SimpleFloat<myuint, DUInt<myuint, 128>, 128, myint> myfloat;
-# elif _FLOAT_BITS_ == 256
-    typedef DUInt<uint64_t, 64> uint128_t;
-    typedef DUInt<uint128_t, 128> uint256_t;
-    typedef Signed<uint256_t, 256> int256_t;
-    typedef uint256_t myuint;
-    typedef int256_t  myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 256>, 256, myint> myfloat;
-# elif _FLOAT_BITS_ == 512
-    typedef DUInt<uint64_t, 64> uint128_t;
-    typedef DUInt<uint128_t, 128> uint256_t;
-    typedef DUInt<uint256_t, 256> uint512_t;
-    typedef Signed<uint512_t, 512> int512_t;
-    typedef uint512_t myuint;
-    typedef int512_t  myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 512>, 512, myint> myfloat;
-# elif _FLOAT_BITS_ == 1024
-    typedef DUInt<uint64_t, 64> uint128_t;
-    typedef DUInt<uint128_t, 128> uint256_t;
-    typedef DUInt<uint256_t, 256> uint512_t;
-    typedef DUInt<uint512_t, 512> uint1024_t;
-    typedef Signed<uint1024_t, 1024> int1024_t;
-    typedef uint1024_t myuint;
-    typedef int1024_t  myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 1024>, 1024, myint> myfloat;
-# elif _FLOAT_BITS_ == 2048
-    typedef DUInt<uint64_t, 64> uint128_t;
-    typedef DUInt<uint128_t, 128> uint256_t;
-    typedef DUInt<uint256_t, 256> uint512_t;
-    typedef DUInt<uint512_t, 512> uint1024_t;
-    typedef DUInt<uint1024_t, 1024> uint2048_t;
-    typedef Signed<uint2048_t, 2048> int2048_t;
-    typedef uint2048_t myuint;
-    typedef int2048_t  myint;
-    typedef SimpleFloat<myuint, DUInt<myuint, 2048>, 2048, myint> myfloat;
-# else
-#   error cannot handle float
-# endif
+#else
+#  error cannot handle float
 #endif
 
-#if defined(_OLDCPP_)
-template <typename T> struct complexC { typedef Complex<T> type; };
-#define complex(T) struct complexC<T>::type
-#define complexctor(T) (complex(T))
-#else
 template <typename T> using complexC = Complex<T>;
 #define complex(T) complexC<T>
 #define complexctor(T) complex(T)
-#endif
 
 // N.B. start simplelin.
 #if defined(_SIMPLEALLOC_)
 #if defined(_OPENMP)
 #error SimpleAllocator not supported
 #endif
-size_t last;
-size_t lastptr;
-size_t v_alloc[M_ALLOC];
-bool   in_use[M_ALLOC];
+unsigned long long last;
+unsigned long long lastptr;
+unsigned long long *v_alloc __attribute__ ((packed));
+bool   *in_use __attribute__ ((packed));
 // N.B. around 20% endurance, so making here into binary tree can reduce some.
 template <typename T> class SimpleAllocator {
 public:
@@ -1379,7 +1249,7 @@ public:
   inline T* allocate(size_t n) {
     n *= sizeof(T);
     n  = (n + _SIMPLEALLOC_ - 1) / _SIMPLEALLOC_ * _SIMPLEALLOC_;
-    if(M_ALLOC <= lastptr) { for(;;) ; }
+    if(M_ALLOC <= lastptr) { printf("pool full.\n"); for(;;) ; }
     v_alloc[lastptr] = n;
     in_use[lastptr ++] = true;
     last += n;
@@ -1411,9 +1281,7 @@ public:
     this->entity.resize(size);
   }
   inline SimpleVector(const SimpleVector<T>& other) { *this = other; }
-#if !defined(_OLDCPP_)
   inline SimpleVector(SimpleVector<T>&& other) { *this = other; }
-#endif
   inline ~SimpleVector() { ; }
   inline       SimpleVector<T>  operator -  () const {
     SimpleVector<T> res(entity.size());
@@ -1471,12 +1339,10 @@ public:
     entity = other.entity;
     return *this;
   }
-#if !defined(_OLDCPP_)
   inline       SimpleVector<T>& operator =  (SimpleVector<T>&& other) {
     entity = move(other.entity);
     return *this;
   }
-#endif
   inline       bool             operator == (const SimpleVector<T>& other) const {
     return ! (*this != other);
   }
@@ -1601,9 +1467,7 @@ public:
     ecols = cols;
   }
   inline SimpleMatrix(const SimpleMatrix<T>& other) { *this = other; }
-#if !defined(_OLDCPP_)
   inline SimpleMatrix(SimpleMatrix<T>&& other) { *this = other; }
-#endif
   inline ~SimpleMatrix() { ; }
   inline       SimpleMatrix<T>  operator -  () const {
     SimpleMatrix<T> res(entity.size(), ecols);
@@ -1688,13 +1552,11 @@ public:
     entity = other.entity;
     return *this;
   }
-#if !defined(_OLDCPP_)
   inline       SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other) {
     ecols  = move(other.ecols);
     entity = move(other.entity);
     return *this;
   }
-#endif
   inline       bool             operator == (const SimpleMatrix<T>& other) const {
     return ! (*this != other);
   }
@@ -1829,12 +1691,7 @@ public:
     // static const myfloat eps(myfloat(int(1)) >> myint(_FLOAT_BITS_ - 1));
 #else
     // N.B. conservative.
-# if defined(_OLDCPP_)
-    // XXX: very rough.
-    const myfloat eps(1e-8);
-# else
     const myfloat eps(sqrt(std::numeric_limits<myfloat>::epsilon()));
-# endif
     // static const myfloat eps(std::numeric_limits<myfloat>::epsilon());
 #endif
     return eps;
@@ -2329,13 +2186,21 @@ template <typename T> static inline SimpleVector<T> linearInvariant(const Simple
 
 // --- N.B. start small only to enname functions ---
 // N.B. functions between R and [0,1], ]0,1[.
+myfloat* bm_sqe;
+myfloat* bm_denom;
 template <typename T> static inline T binMargin(const T& in) {
-  const T sqe(sqrt(SimpleMatrix<T>().epsilon()));
-  const T denom(T(int(1)) + sqrt(sqe));
+  if(! bm_sqe) {
+    bm_sqe   = SimpleAllocator<T>().allocate(1);
+    bm_denom = SimpleAllocator<T>().allocate(1);
+    ::new ((void*)bm_sqe) T();
+    ::new ((void*)bm_denom) T();
+    *bm_sqe    = sqrt(SimpleMatrix<T>().epsilon());
+    *bm_denom = T(int(1)) + sqrt(*bm_sqe);
+  }
   // N.B. better 0 handling, {0, 1} vanished before.
-  T res(in + sqe);
+  T res(in + *bm_sqe);
   // N.B. CPU float glitch.
-  res /= denom;
+  res /= *bm_denom;
   return res;
 }
 
@@ -2446,11 +2311,7 @@ template <typename T> static inline SimpleVector<T> bin2R(const SimpleVector<T>&
   return res;
 }
 
-#if defined(_OLDCPP_)
 template <typename T> T sgn(const T& x) {
-#else
-template <typename T> const T& sgn(const T& x) {
-#endif
   const T zero(0);
   const T one(1);
   const T mone(- T(int(1)));
@@ -2627,44 +2488,19 @@ template <typename T> static inline SimpleVector<T> minsq(const int& size) {
   return s;
 }
 
-template <typename T> const SimpleVector<T>& mscache(const int& size) {
-  vector<SimpleVector<T> > ms;
-  if(ms.size() <= size) ms.resize(size + 1, SimpleVector<T>());
-  if(ms[size].size()) return ms[size];
-  return ms[size] = minsq<T>(size);
-}
-
-#if defined(_PNEXT_NOT_ON_MEMORY_)
-template <typename T> SimpleVector<T> pnextcacher(const int& size, const int& step) {
-  SimpleVector<T> nonthreadsafe;
-  int thisstep(0);
-  if(nonthreadsafe.size() == size && thisstep == step) return nonthreadsafe;
-  thisstep = step;
-  return nonthreadsafe = (dft<T>(- size) * (dft<T>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<T>(size * 2, T(step < 0 ? step * 2 : (size + step) * 2 - 1), T(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<T>();
-}
-#else
-template <typename T> const SimpleVector<T> pnextcacher(const int& size, const int& step) {
-  vector<vector<SimpleVector<T> > > cp;
+vector<vector<SimpleVector<myfloat> > > *pncr_cp;
+template <typename T> const SimpleVector<T>& pnextcacher(const int& size, const int& step) {
+  if(! pncr_cp) {
+    pncr_cp = SimpleAllocator<vector<vector<SimpleVector<T> > > >().allocate(1);
+    ::new ((void*)pncr_cp) vector<vector<SimpleVector<T> > >();
+  }
+  vector<vector<SimpleVector<T> > >& cp(*pncr_cp);
   if(cp.size() <= size)
     cp.resize(size + 1, vector<SimpleVector<T> >());
   if(cp[size].size() <= step)
     cp[size].resize(step + 1, SimpleVector<T>());
   if(cp[size][step].size()) return cp[size][step];
   return cp[size][step] = (dft<T>(- size) * (dft<T>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<T>(size * 2, T(step < 0 ? step * 2 : (size + step) * 2 - 1), T(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<T>();
-}
-#endif
-
-template <typename T> const SimpleMatrix<complex(T) >& dftcache(const int& size) {
-  vector<SimpleMatrix<complex(T) > > cdft;
-  vector<SimpleMatrix<complex(T) > > cidft;
-  if(0 < size) {
-    if(cdft.size() <= size) cdft.resize(size + 1, SimpleMatrix<complex(T) >());
-    if(cdft[size].rows() && cdft[size].cols()) return cdft[size];
-    return cdft[size] = dft<T>(size);
-  }
-  if(cidft.size() <= abs(size)) cidft.resize(abs(size) + 1, SimpleMatrix<complex(T) >());
-  if(cidft[abs(size)].rows() && cidft[abs(size)].cols()) return cidft[abs(size)];
-  return cidft[abs(size)] = dft<T>(size);
 }
 
 // N.B. f in C1 case, F(z,theta) := complex(f(z+~z),f(z-~z)*tan(theta)) in C1,
@@ -2889,6 +2725,7 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
     work[work.size() - 1] = T(int(0));
     res.emplace_back(revertByProgramInvariant<T, true>(work, invariant));
   }
+  efi_cons_putc(0, '.');
   return res;
 }
 
@@ -3142,11 +2979,9 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pRS(const vector<S
     vector<SimpleVector<T> > res;
 #endif
     res.resize(intran0[0].size(), SimpleVector<T>(intran0.size()).O());
-    printf("r %d\n\0", res.size());
     for(int j = 0; j < res.size(); j ++) {
       for(int i = 0; i < res[j].size(); i ++)
         res[j][i] = p0maxNext<T>(intran0[i].subVector(0, j + 1));
-      printf("%d\n", res[j].size());
     }
     return res;
   }
@@ -3178,6 +3013,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pRS(const vector<S
 #else
   vector<SimpleVector<T> > p;
 #endif
+  
   // N.B. p01next calls p0maxNext implicitly, this needs to be cached single
   //      threaded process on first call.
   vector<T> p0(p01nextM<T>(intran[0]));
@@ -3223,7 +3059,6 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       reform[i][j].entity.reserve(in.size() - horizontal * horizontal + 1);
   }
   for(int i = 0; i <= in.size() - horizontal * horizontal; i ++) {
-    printf("%d, %d, l0\n", i, in.size() - horizontal * horizontal + 1);
     vector<vector<vector<T> > > les;
     les.resize(in[0].size());
     for(int j = 0; j < les.size(); j ++) {
@@ -3231,17 +3066,10 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       for(int k = 0; k < les[j].size(); k ++)
         les[j][k].reserve(horizontal * horizontal);
     }
-    printf("%d, %d, l1\n", i, in.size() - horizontal * horizontal + 1);
     for(int j = i; j < i + horizontal * horizontal; j ++)
-      for(int k = 0; k < les.size(); k ++) {
-        // XXX: gpe here on binMargin call.
-        const int idx(binMargin<T>(in[j][k]) * T(horizontal) );
-        if(0 <= idx && idx < les[k].size());
-          les[k][idx].emplace_back(in[j][k]);
-      }
-    printf("%d, %d, l2\n", i, in.size() - horizontal * horizontal + 1);
+      for(int k = 0; k < les.size(); k ++)
+        les[k][int(binMargin<T>(in[j][k]) * T(horizontal) )].emplace_back(in[j][k]);
     for(int k = 0; k < in[0].size(); k ++) {
-      printf("%d, %d\n", k, in[0].size());
       int Mtot(0);
       for(int j = 0; j < horizontal; j ++)
         Mtot = max(Mtot, int(les[k][j].size()));
@@ -3251,16 +3079,14 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
         reform[j][k].entity.emplace_back(binMargin<T>(sum / T(Mtot) *
           T(horizontal) / T(j + 1) ) );
       }
-      // XXX: somehow, freeze here.
-      printf("%d, %d\n", k, in[0].size());
     }
-    printf("%d, %d, l3\n", i, in.size() - horizontal * horizontal + 1);
   }
 #if defined(_SIMPLEALLOC_)
   vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > res;
 #else
   vector<SimpleVector<T> > res;
 #endif
+  res.resize(in.size(), SimpleVector<T>(in[0].size()).O());
   for(int i = 0; i < reform.size(); i ++) {
     T n2(int(0));
     for(int j = 0; j < reform[i].size(); j ++)
@@ -3277,15 +3103,12 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
     vector<SimpleVector<T> > p1;
     vector<SimpleVector<T> > p2;
 #endif
-    printf("-1.0\n\0");
     p0 = pRS<T, nprogress>(
       reform[i], string(" L(0/3, ") + to_string(i) + string("/") +
         to_string(reform.size()) + strloop);
-    printf("-1.1\n\0");
     p1 = logscale<T>(pRS<T, nprogress>(
       expscale<T>(reform[i]), string(" L(1/3, ") + to_string(i) +
         string("/") + to_string(reform.size()) + strloop) );
-    printf("-1.2\n\0");
     p2 = expscale<T>(pRS<T, nprogress>(
       logscale<T>(reform[i]), string(" L(2/3, ") + to_string(i) +
         string("/") + to_string(reform.size()) + strloop) );
@@ -3294,14 +3117,11 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
       p0[i] += p2[i];
       p0[i] *= T(i + 1) / T(horizontal) / T(int(3));
     }
-    printf("-1\n\0");
-    {
-      if(! res.size()) res = move(p0);
-      else for(int i = 0; i < res.size(); i ++) res[i] += p0[i];
-    }
+    if(p0.size() < res.size()) res.resize(p0.size());
+    for(int i = 0; i < res.size(); i ++) res[i] += p0[i];
+    efi_cons_putc(0, 'L');
   }
   for(int i = 0; i < res.size(); i ++) res[i] /= T(int(reform.size()));
-  printf("ok0\n\0");
   return res;
 }
 
@@ -3360,6 +3180,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pPolish(const vect
     resp[i] += resm[i];
     resp[i] /= T(int(2));
   }
+  efi_cons_putc(0, 'r');
   return resp;
 }
 
@@ -3378,7 +3199,6 @@ template <typename T, int nprogress> static inline vector<SimpleVector<T> > pGua
   vector<SimpleVector<T> > res(pPolish<T, nprogress>(
 #endif
     bitsG<T, true>(in.entity, abs(_P_BIT_)), strloop) );
-  printf("ok1\n\0");
   for(int i = 0; i < res.size(); i ++)
     res[i] = bitsG<T, true>(offsetHalf<T>(res[i]), - abs(_P_BIT_) );
   return res;
@@ -3474,6 +3294,7 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
   for(int i = 1; i < r.size(); i ++) r[i] += r[i - 1];
   for(int i = 1; i < r.size(); i ++) {
     r[0] += r[i];
+/*
     if(((i ^ r.size()) & 1) && i < r.size() - 1) {
       int sum(int(0));
       for(int j = 0; j < r[0].size(); j ++)
@@ -3482,6 +3303,7 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
       int stat(T(sum) / T(r[0].size()) * T(int(10000)) );
       printf("%d%c%d%c\n\0", stat / 100, '.', stat % 100, '\%');
     }
+*/
   }
   return r[0];
 }
@@ -3509,10 +3331,8 @@ template <typename T, int nprogress> static inline SimpleVector<T> pEachPRNG(con
 #endif
         - unOffsetHalf<T>(in[j][i]) : unOffsetHalf<T>(in[j][i]) );
     }
-    printf("3\n\0");
     SimpleVector<T> w(pAppendMeasure<T, 0>(work, string(" ") +
       to_string(i) + string("/") + to_string(in[0].size()) + strloop) );
-    printf("4\n\0");
     for(int j = 0; j < w.size(); j ++) out[i] += w[j];
     int sign(0);
     for(int j = 0; j < work[0].size(); j ++) sign += 
