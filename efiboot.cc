@@ -9,7 +9,7 @@ static inline void free(void* p) { free(p, 1); return; }
 int atexit(void (*function)(void)) { return 0; }
 }
 
-#define M_ALLOC (8 * 1024 * 1024)
+#define M_ALLOC (16 * 1024)
 #define assert (void)
 
 #define _P_BIT_  3
@@ -64,13 +64,13 @@ void simplealloc_init() {
   unsigned long long heap = 0;
   EFI_STATUS status;
   status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-    1536 * 1024 * 1024 / (4 * 1024), &heap);
+    256 * 1024 * 1024 / (4 * 1024), &heap);
   if (status != EFI_SUCCESS)
           panic("BS->AllocatePages()");
   v_alloc = reinterpret_cast<unsigned long long *>(heap);
   in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long));
   last    = heap + M_ALLOC * sizeof(unsigned long long) * 2;
-  sam_upper = heap + 1536 * 1024 * 1024;
+  sam_upper = heap + 256 * 1024 * 1024;
   lastptr = 0;
   return;
 }

@@ -49,7 +49,10 @@ public:
   }
   inline vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
     if(! size() && ! x.size()) return *this;
-    if(sz_alloc || reinterpret_cast<size_t>(entity)) alloc.deallocate(entity, sz_alloc);
+    if(sz_alloc || reinterpret_cast<size_t>(entity)) {
+      for(int i = 0; i < sz_alloc; i ++) entity[i].~T();
+      alloc.deallocate(entity, sz_alloc);
+    }
     sz       = x.sz;
     sz_alloc = x.sz_alloc;
     entity   = x.entity;

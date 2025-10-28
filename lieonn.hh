@@ -1954,6 +1954,8 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
   fidx.reserve(fidx.size() + this->cols());
   for(int i = 0; i < this->cols(); i ++)
     fidx.emplace_back(make_pair(abs(on[i]), i));
+  vector<bool> fixed;
+  fixed.resize(this->cols(), false);
   // sort by: |<Q^t(1), q_k>|, we subject to minimize each, to do this,
   //   maximize minimum q_k orthogonality.
   for(int i = 0; i < this->rows() - 1; i ++) {
@@ -1974,14 +1976,16 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
     //      however, masp calls with rank isn't max cases.
     if(n2 <= epsilon())
       continue;
+    fixed[fidx[idx].second] = true;
     Pb = *this;
     // N.B. O(mn) can be written into O(lg m + lg n) in many core cond.
     for(int j = 0; j < this->cols(); j ++)
       this->setCol(j, this->col(j) - orth * this->col(j).dot(orth) / n2);
     if(T(int(0)) < fidx[idx].first) {
+      if(one.size() != fidx.size()) fidx.resize(one.size());
       const SimpleVector<T> on(projectionPt(one));
-      for(int j = 0; j < this->cols(); j ++) if(fidx[j].first != T(int(0)) ) { fidx[j].first = abs(on[j]); fidx[j].second = j; }
-    }
+      for(int j = 0; j < this->cols(); j ++) if(fixed[j]) { fidx[j].first = T(int(0)); fidx[j].second = j; } else { fidx[j].first = abs(on[j]); fidx[j].second = j; }
+    } else fidx[idx].first = T(int(1));
     i ++;
   }
   {
@@ -2724,7 +2728,8 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
     //      ||invariant made stream||_sup <~ ||f||_sup / varlen!.
     //      this is because it's toeplitz made stream.
     const int ii0(i0 - (varlen * 2 + 1));
-    invariants.row(ii0) = linearInvariant<T>(toeplitz);
+    const SimpleVector<T> lt(linearInvariant<T>(toeplitz));
+    invariants.row(ii0) = lt;
   }
   vector<T> res;
   res.reserve(invariants.rows());
@@ -3131,15 +3136,9 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
     vector<SimpleVector<T> > p1;
     vector<SimpleVector<T> > p2;
 #endif
-    p0 = pRS<T, nprogress>(
-      reform[i], string(" L(0/3, ") + to_string(i) + string("/") +
-        to_string(reform.size()) + strloop);
-    p1 = logscale<T>(pRS<T, nprogress>(
-      expscale<T>(reform[i]), string(" L(1/3, ") + to_string(i) +
-        string("/") + to_string(reform.size()) + strloop) );
-    p2 = expscale<T>(pRS<T, nprogress>(
-      logscale<T>(reform[i]), string(" L(2/3, ") + to_string(i) +
-        string("/") + to_string(reform.size()) + strloop) );
+    p0 = pRS<T, nprogress>(reform[i], string(""));
+    p1 = logscale<T>(pRS<T, nprogress>(expscale<T>(reform[i]), string("") ));
+    p1 = expscale<T>(pRS<T, nprogress>(logscale<T>(reform[i]), string("") ));
     for(int i = 0; i < p0.size(); i ++) {
       p0[i] += p1[i];
       p0[i] += p2[i];
@@ -3350,6 +3349,7 @@ template <typename T, int nprogress> static inline SimpleVector<T> pEachPRNG(con
   out.resize(in[0].size());
   out.O();
   for(int i = 0; i < in[0].size(); i ++) {
+    printf("%d, %d\n", last, lastptr);
     vector<SimpleVector<T> > work;
     work.resize(in.size());
     for(int j = 0; j < in.size(); j ++) {
