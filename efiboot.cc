@@ -66,12 +66,13 @@ void simplealloc_init() {
   unsigned long long heap = 0;
   EFI_STATUS status;
   status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-    512 * 1024 * 1024 / (4 * 1024), &heap);
+    2048 * 1024 * 1024 / (4 * 1024), &heap);
   if (status != EFI_SUCCESS)
           panic("BS->AllocatePages()");
   v_alloc = reinterpret_cast<unsigned long long *>(heap);
   in_use  = reinterpret_cast<bool*>(heap + M_ALLOC * sizeof(unsigned long long));
   last    = heap + M_ALLOC * (sizeof(unsigned long long) + sizeof(bool));
+  sam_upper = heap + 1536 * 1024 * 1024;
   lastptr = 0;
   return;
 }
@@ -104,6 +105,8 @@ extern "C" {
     char buf[0x200];
     printf("mode? (n for number | r for prng | k for keyboard [a-z]\r\n\0");
     int m('r');
+    const num_t sq2(sqrt(num_t(int(2)) ));
+    printf("mem usage temporal efficiency nil: %d, %d\n", sq2.m, sq2.e);
     idFeeder<SimpleVector<num_t> > f(_P_MLEN_ / 2 + 1);
     num_t b;
     while(true)

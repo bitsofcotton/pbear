@@ -628,8 +628,8 @@ private:
   }
 
   // XXX: these are NOT threadsafe on first call.
-  const vector<SimpleFloat<T,W,bits,U> > exparray()    const;
-  const vector<SimpleFloat<T,W,bits,U> > invexparray() const;
+  const vector<SimpleFloat<T,W,bits,U> >& exparray()    const;
+  const vector<SimpleFloat<T,W,bits,U> >& invexparray() const;
 };
 
 template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::log() const {
@@ -657,8 +657,8 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
     }
     return res;
   }
-  const vector<SimpleFloat<T,W,bits,U> > ea(exparray());
-  const vector<SimpleFloat<T,W,bits,U> > iea(invexparray());
+  const vector<SimpleFloat<T,W,bits,U> >& ea(exparray());
+  const vector<SimpleFloat<T,W,bits,U> >& iea(invexparray());
   SimpleFloat<T,W,bits,U>  result(zero());
   SimpleFloat<T,W,bits,U>  work(*this);
   if(one_einv < work) {
@@ -704,8 +704,8 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
     }
     return res;
   }
-  const vector<SimpleFloat<T,W,bits,U> > en(exparray());
-  const vector<SimpleFloat<T,W,bits,U> > ien(invexparray());
+  const vector<SimpleFloat<T,W,bits,U> >& en(exparray());
+  const vector<SimpleFloat<T,W,bits,U> >& ien(invexparray());
   SimpleFloat<T,W,bits,U> work(this->abs());
   SimpleFloat<T,W,bits,U> result(one());
   for(int i = 1; 0 <= i && i < min(en.size(), ien.size()) && work.absfloor(); i ++, work >>= U(1))
@@ -842,8 +842,15 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
   return u.atan() << U(1);
 }
 
-template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> > SimpleFloat<T,W,bits,U>::exparray() const {
-  vector<SimpleFloat<T,W,bits,U> > ebuf;
+// XXX:
+vector<SimpleFloat<uint32_t, uint64_t, _FLOAT_BITS_, int32_t > >* sf_ea;
+vector<SimpleFloat<uint32_t, uint64_t, _FLOAT_BITS_, int32_t > >* sf_iea;
+template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> >& SimpleFloat<T,W,bits,U>::exparray() const {
+  if(! sf_ea) {
+    sf_ea = SimpleAllocator<vector<SimpleFloat<T,W,bits,U> > >().allocate(1);
+    ::new ((void*)sf_ea) vector<SimpleFloat<T,W,bits,U> >();
+  }
+  vector<SimpleFloat<T,W,bits,U> >& ebuf(* sf_ea);
   if(ebuf.size())
     return ebuf;
   ebuf.emplace_back(one());
@@ -858,11 +865,15 @@ template <typename T, typename W, int bits, typename U> const vector<SimpleFloat
   return ebuf;
 }
 
-template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> > SimpleFloat<T,W,bits,U>::invexparray() const {
-  vector<SimpleFloat<T,W,bits,U> > iebuf;
+template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> >& SimpleFloat<T,W,bits,U>::invexparray() const {
+  if(! sf_iea) {
+    sf_iea = SimpleAllocator<vector<SimpleFloat<T,W,bits,U> > >().allocate(1);
+    ::new ((void*)sf_iea) vector<SimpleFloat<T,W,bits,U> >();
+  }
+  vector<SimpleFloat<T,W,bits,U> >& iebuf(* sf_iea);
   if(iebuf.size())
     return iebuf;
-  const vector<SimpleFloat<T,W,bits,U> > ea(exparray());
+  const vector<SimpleFloat<T,W,bits,U> >& ea(exparray());
   for(int i = 0; 0 <= i && i < ea.size(); i ++) {
     const SimpleFloat<T,W,bits,U> ien(one() / ea[i]);
     if(ien && isfinite(ien))
@@ -1235,6 +1246,7 @@ template <typename T> using complexC = Complex<T>;
 #endif
 unsigned long long last;
 unsigned long long lastptr;
+unsigned long long sam_upper;
 unsigned long long *v_alloc __attribute__ ((packed));
 bool   *in_use __attribute__ ((packed));
 // N.B. around 20% endurance, so making here into binary tree can reduce some.
@@ -1253,6 +1265,7 @@ public:
     v_alloc[lastptr] = n;
     in_use[lastptr ++] = true;
     last += n;
+    if(! (last < sam_upper)) { printf("memory full\n"); for(;;) ; }
     return reinterpret_cast<T*>(last - n);
   }
   inline void deallocate(T* p, size_t n) {
@@ -2725,7 +2738,7 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
     work[work.size() - 1] = T(int(0));
     res.emplace_back(revertByProgramInvariant<T, true>(work, invariant));
   }
-  efi_cons_putc(0, '.');
+  // efi_cons_putc(0, '.');
   return res;
 }
 
@@ -3314,6 +3327,8 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
 //      1 a.s. on whole pixel context for each).
 #if defined(_P_PRNG_)
 template <typename T, int nprogress> static inline SimpleVector<T> pEachPRNG(const vector<SimpleVector<T> >& in0, const string& strloop) {
+  for(int i = 0; i < in0.size(); i ++)
+    pnextcacher<T>(i + 1, 1);
   const vector<SimpleVector<T> > in(bitsG<T, false>(in0, abs(_P_BIT_)) );
   SimpleVector<T> out;
   out.resize(in[0].size());
