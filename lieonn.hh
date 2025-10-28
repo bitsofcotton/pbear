@@ -3138,7 +3138,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
 #endif
     p0 = pRS<T, nprogress>(reform[i], string(""));
     p1 = logscale<T>(pRS<T, nprogress>(expscale<T>(reform[i]), string("") ));
-    p1 = expscale<T>(pRS<T, nprogress>(logscale<T>(reform[i]), string("") ));
+    p2 = expscale<T>(pRS<T, nprogress>(logscale<T>(reform[i]), string("") ));
     for(int i = 0; i < p0.size(); i ++) {
       p0[i] += p1[i];
       p0[i] += p2[i];
