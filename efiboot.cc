@@ -56,9 +56,9 @@ num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& fp, idFeeder<SimpleVe
   SimpleVector<SimpleVector<num_t> > rdfm;
   rdfp.entity = move(ddfp);
   rdfm.entity = move(ddfm);
-  SimpleVector<num_t> p0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp, string("") )) );
+  SimpleVector<num_t> p0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp.subVector(2, _P_MLEN_), string("") )) );
   printf("\b3");
-  SimpleVector<num_t> m0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm, string("") )) );
+  SimpleVector<num_t> m0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm.subVector(2, _P_MLEN_), string("") )) );
   fp.next(  bb);
   fm.next(- bb);
   printf("\b2");
@@ -68,9 +68,9 @@ num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& fp, idFeeder<SimpleVe
   for(int i = 0; i < ddfm.size(); i ++) ddfm[i] = offsetHalf<num_t>(ddfm[i] /= num_t(int(4)) );
   rdfp.entity = move(ddfp);
   rdfm.entity = move(ddfm);
-  SimpleVector<num_t> p1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp, string("") )) );
+  SimpleVector<num_t> p1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp.subVector(2, _P_MLEN_), string("") )) );
   printf("\b1");
-  SimpleVector<num_t> m1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm, string("") )) );
+  SimpleVector<num_t> m1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm.subVector(2, _P_MLEN_), string("") )) );
   if(buf.rows() != 3 || buf.cols() != p0.size() * 2) return num_t(int(0));
   for(int i = 1; i < buf.rows(); i ++) buf.row(i - 1) = buf.row(i);
   buf.row(buf.rows() - 1).setVector(0, v * num_t(int(2)) - (bp + bm));
@@ -143,8 +143,8 @@ EFI_STATUS calc() {
     printf("%d:", pnextcacher<num_t>(i + 1, 1).size());
   printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
-  idFeeder<SimpleVector<num_t> > fp(_P_MLEN_);
-  idFeeder<SimpleVector<num_t> > fm(_P_MLEN_);
+  idFeeder<SimpleVector<num_t> > fp(_P_MLEN_ + 2);
+  idFeeder<SimpleVector<num_t> > fm(_P_MLEN_ + 2);
   SimpleVector<num_t> bb, bp, bm, bs, s0, s1;
   SimpleMatrix<num_t> mbuf(3, _VDIM_ * 2);
   mbuf.O();
