@@ -6,7 +6,7 @@ void addbootarg(int, size_t, void *);
 int atexit(void (*function)(void)) { return 0; }
 }
 
-#define M_ALLOC (256 * 1024)
+#define M_ALLOC (512 * 1024)
 #define assert (void)
 
 #define _P_BIT_  3
@@ -17,12 +17,66 @@ int atexit(void (*function)(void)) { return 0; }
 #include "lieonn.hh"
 typedef myfloat num_t;
 
-num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& f) {
-  SimpleVector<num_t> v(1);
-  v[0] = x;
-  f.next(v);
-  if(! f.full) return num_t(int(0));
-  return (pEachPRNG<num_t, 0>(f.res.entity, string("")))[0];
+const int pdata[] = {
+#include "pdata.h"
+};
+
+#define _VDIM_ 11
+
+num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& fp, idFeeder<SimpleVector<num_t> >& fm, SimpleVector<num_t>& bb, SimpleVector<num_t>& bp, SimpleVector<num_t>& bm, SimpleVector<num_t>& bs, SimpleVector<num_t>& s0, SimpleVector<num_t>& s1, SimpleMatrix<num_t>& buf) {
+  if(! bb.size()) {
+    bb.entity.resize(_VDIM_, num_t(int(0)));
+    bp.entity.resize(_VDIM_, num_t(int(0)));
+    bm.entity.resize(_VDIM_, num_t(int(0)));
+    bs.entity.resize(_VDIM_ * 2, num_t(int(0)));
+    s0.entity.resize(_VDIM_ * 2, num_t(int(0)));
+    s1.entity.resize(_VDIM_ * 2, num_t(int(0)));
+    fp.next(  bb);
+    fm.next(- bb);
+  }
+  SimpleVector<num_t> v(_VDIM_);
+  for(int i = 0; i < v.size(); i ++)
+    v[i] = random() & 1 ? x : - x;
+  bb = v * num_t(int(2)) - bb;
+  if(! fp.full) {
+    fp.next(  v);
+    fp.next(  bb);
+    fm.next(  v);
+    fm.next(- bb);
+    return num_t(int(0));
+  }
+  fp.next(v);
+  fm.next(v);
+  printf("4");
+  SimpleVector<num_t> p0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(fp.res), string("") )) );
+  printf("\b3");
+  SimpleVector<num_t> m0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(fm.res), string("") )) );
+  fp.next(  bb);
+  fm.next(- bb);
+  printf("\b2");
+  SimpleVector<num_t> p1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(fp.res), string("") )) );
+  printf("\b1");
+  SimpleVector<num_t> m1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(fm.res), string("") )) );
+  if(buf.rows() != 3 || buf.cols() != p0.size() * 2) return num_t(int(0));
+  for(int i = 1; i < buf.rows(); i ++) buf.row(i - 1) = buf.row(i);
+  buf.row(buf.rows() - 1).setVector(0, v * num_t(int(2)) - (bp + bm));
+  buf.row(buf.rows() - 1).setVector(v.size(), bp + bm);
+  s1 += (s0 += buf.row(buf.rows() - 1) - bs);
+  num_t rr(int(0));
+  for(int i = 0; i < s1.size() / 2; i ++)
+    rr += (s1[i] + s1[i + s1.size() / 2]) * s1[i + s1.size() / 2];
+  for(int i = 0; i < bs.size(); i ++)
+    bs[i] = pnextcacher<num_t>(buf.rows(), 1).dot(buf.col(i));
+  for(int i = 1; i < buf.rows(); i ++) buf.row(i - 1) = buf.row(i);
+  buf.row(buf.rows() - 1).setVector(0, v * num_t(int(2)) - (p0 + m0));
+  buf.row(buf.rows() - 1).setVector(v.size(), p0 + m0);
+  s1 += (s0 += buf.row(buf.rows() - 1) - bs);
+  for(int i = 0; i < bs.size(); i ++)
+    bs[i] = pnextcacher<num_t>(buf.rows(), 1).dot(buf.col(i));
+  bp = p1;
+  bm = m1;
+  printf("\b");
+  return rr;
 }
 
 extern "C" {
@@ -32,13 +86,13 @@ extern "C" {
     unsigned long long heap = 0;
     EFI_STATUS status;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      512 * 1024 * 1024 / (4 * 1024), &heap);
+      768 * 1024 * 1024 / (4 * 1024), &heap);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
     v_alloc = reinterpret_cast<unsigned long long *>(heap);
     in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long));
     last    = heap + M_ALLOC * sizeof(unsigned long long) * 2;
-    sam_upper = heap + 512 * 1024 * 1024;
+    sam_upper = heap + 768 * 1024 * 1024;
     lastptr = 0;
     return;
   }
@@ -71,49 +125,57 @@ EFI_STATUS calc() {
   int m('r');
   const num_t sq2(sqrt(num_t(int(2)) ));
   const num_t bmqpi(binMargin<num_t>(num_t().quatpi()));
-  for(int i = 0; i < _P_MLEN_ / 2 + 2; i ++) printf("%d:", pnextcacher<num_t>(i + 1, 1).size());
+  for(int i = 0; i < _P_MLEN_; i ++)
+    printf("%d:", pnextcacher<num_t>(i + 1, 1).size());
   printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
-  printf("mode? (n for number | r for prng | k for keyboard [a-z])\n");
-  idFeeder<SimpleVector<num_t> > f(_P_MLEN_ / 2 + 1);
-  num_t b;
-  int ctr(0);
+  printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
+  idFeeder<SimpleVector<num_t> > fp(_P_MLEN_);
+  idFeeder<SimpleVector<num_t> > fm(_P_MLEN_);
+  SimpleVector<num_t> bb, bp, bm, bs, s0, s1;
+  SimpleMatrix<num_t> mbuf(3, _VDIM_ * 2);
+  mbuf.O();
   int pctr(0);
   while(true)
-    switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': goto bbreak; }
+    switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': case'd': goto bbreak; }
  bbreak:
   for(int lc = 0; ; lc ++) {
     int i;
     switch(m) {
     case 'n': {
-      for(i = 0; i < sizeof(buf) - 1; i ++) if((buf[i] = efi_cons_getc(0)) == '\n') break;
+      for(i = 0; i < sizeof(buf) - 1; i ++)
+        if((buf[i] = efi_cons_getc(0)) == '\n') break;
       buf[i] = '\0';
       num_t nx;
-      num_t n(next(nx, f));
-      if(num_t(int(0)) < b * nx) pctr ++;
-      if(n != num_t(int(0))) ctr ++;
-      b = n;
+      if(num_t(int(0)) <
+        next(nx, fp, fm, bb, bp, bm, bs, s0, s1, mbuf)) pctr ++;
       break;
     } case 'r': {
-      num_t nb(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) / num_t(int(2)) );
-      num_t n(next(nb, f));
-      if(num_t(int(0)) < b * nb) pctr ++;
-      if(n != num_t(int(0))) ctr ++;
-      b = n;
+      if(num_t(int(0)) <
+        next(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
+          num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
+            pctr ++;
+      break;
+    } case 'd': {
+      if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
+      if(num_t(int(0)) <
+        next(num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
+          num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
+            pctr ++;
       break;
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
-        num_t nx(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) / num_t(int(2)));
-        if(num_t(int(0)) < b * nx) pctr ++;
-        num_t n(next(nx, f));
-        if(n != num_t(int(0))) ctr ++;
-        b = n;
-      }
+        if(num_t(int(0)) <
+          next(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
+            num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
+              pctr ++;
+      } else lc --;
       break;
     } }
-    int per10000(num_t(pctr) / num_t(ctr) * num_t(int(10000)));
-    printf("%d: %d%c%d, %d\r\n\0", lc, (per10000 / 100 ) % 100, '.', per10000 % 100, ctr);
+    int per10000(num_t(pctr) / num_t(0 < lc ? lc : 1) * num_t(int(10000)));
+    printf("%d: %d%c%d\r\n\0", lc, (per10000 / 100 ) % 100, '.', per10000 % 100);
   }
+ bbbreak:
   return EFI_SUCCESS;
 }
 

@@ -21,6 +21,7 @@ public:
       T* nentity(alloc.allocate(nsz));
       for(int i = 0; i < nsz; i ++) ::new ((void*)(&nentity[i])) T();
       if(entity) {
+        // XXX: entity << base.
         for(int i = 0; i < sz; i ++) nentity[i] = move(entity[i]);
         for(int i = 0; i < sz_alloc; i ++) entity[i].~T();
         alloc.deallocate(entity, sz_alloc);
@@ -49,7 +50,7 @@ public:
   }
   inline vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
     if(! size() && ! x.size()) return *this;
-    if(sz_alloc || reinterpret_cast<size_t>(entity)) {
+    if(sz_alloc && reinterpret_cast<size_t>(entity)) {
       for(int i = 0; i < sz_alloc; i ++) entity[i].~T();
       alloc.deallocate(entity, sz_alloc);
     }
@@ -57,13 +58,11 @@ public:
     sz_alloc = x.sz_alloc;
     entity   = x.entity;
     alloc    = x.alloc;
-    x.sz    ^= x.sz;
-    x.sz_alloc ^= x.sz_alloc;
-    x.entity    = reinterpret_cast<T*>(size_t(0));
+    x.initmem();
     return *this;
   }
-  inline const T& operator [] (const size_t& idx) const { return entity[idx]; }
-  inline T& operator [] (const size_t& idx) { return entity[idx]; }
+  inline const T& operator [] (const size_t& idx) const { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
+  inline T& operator [] (const size_t& idx) { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
   inline size_t size() const { return sz; }
   size_t sz;
   size_t sz_alloc;

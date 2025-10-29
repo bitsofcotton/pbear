@@ -1285,7 +1285,7 @@ public:
       if((work -= v_alloc[i]) == pp) break;
       flag = flag || in_use[i];
     }
-    if(work != pp) { printf("free bug\n"); for(;;) ; }
+    if(work != pp) { printf("free bug : %d, %d\n", work, pp); for(;;) ; }
     in_use[i] ^= in_use[i];
     if(! flag) {
       last = pp;
@@ -3100,8 +3100,11 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
         les[j][k].reserve(horizontal * horizontal);
     }
     for(int j = i; j < i + horizontal * horizontal; j ++)
-      for(int k = 0; k < les.size(); k ++)
-        les[k][int(binMargin<T>(in[j][k]) * T(horizontal) )].emplace_back(in[j][k]);
+      for(int k = 0; k < les.size(); k ++) {
+        // XXX:
+        const int idx(binMargin<T>(in[j][k]) * T(horizontal) );
+        les[k][max(0, min(les[k].size() - 1, idx))].emplace_back(in[j][k]);
+      }
     for(int k = 0; k < in[0].size(); k ++) {
       int Mtot(0);
       for(int j = 0; j < horizontal; j ++)
@@ -3120,7 +3123,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pLebesgue(const ve
   vector<SimpleVector<T> > res;
 #endif
   for(int i = 0; i < reform.size(); i ++) {
-    efi_cons_putc(0, 'L');
+    // efi_cons_putc(0, 'L');
     T n2(int(0));
     for(int j = 0; j < reform[i].size(); j ++)
       n2 += reform[i][j].dot(reform[i][j]);
@@ -3206,7 +3209,7 @@ template <typename T, int nprogress> vector<SimpleVector<T> > pPolish(const vect
     resp[i] += resm[i];
     resp[i] /= T(int(2));
   }
-  efi_cons_putc(0, 'r');
+  // efi_cons_putc(0, 'r');
   return resp;
 }
 
@@ -3227,7 +3230,7 @@ template <typename T, int nprogress> static inline vector<SimpleVector<T> > pGua
     bitsG<T, true>(in.entity, abs(_P_BIT_)), strloop) );
   for(int i = 0; i < res.size(); i ++)
     res[i] = bitsG<T, true>(offsetHalf<T>(res[i]), - abs(_P_BIT_) );
-  efi_cons_putc(0, 'g');
+  // efi_cons_putc(0, 'g');
   return res;
 }
 
