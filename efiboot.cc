@@ -26,9 +26,13 @@ const int pdata[] = {
 num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& f) {
   SimpleVector<num_t> v(1);
   v[0] = x;
+  if(! f.full) {
+    f.next(v);
+    return num_t(int(0));
+  }
+  const num_t M(pEachPRNG<num_t, 0>(f.res.entity, string(""))[0]);
   f.next(v);
-  if(! f.full) return num_t(int(0));
-  return pEachPRNG<num_t, 0>(f.res.entity, string(""))[0];
+  return x * M;
 }
 
 extern "C" {
