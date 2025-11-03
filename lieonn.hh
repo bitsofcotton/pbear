@@ -3258,13 +3258,11 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
   vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > pm;
   vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > p;
   vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > q;
-  vector<SimpleVector<T>, SimpleAllocator<SimpleVector<T> > > r;
 #else
   vector<SimpleVector<T> > pp;
   vector<SimpleVector<T> > pm;
   vector<SimpleVector<T> > p;
   vector<SimpleVector<T> > q;
-  vector<SimpleVector<T> > r;
 #endif
   {
     SimpleVector<SimpleVector<T> > workp;
@@ -3310,32 +3308,20 @@ template <typename T, int nprogress> SimpleVector<T> pAppendMeasure(const vector
       SimpleVector<T>(p[i].size()).O() :
       unOffsetHalf<T>(in[(i - int(pp.size())) / 2 + in.size()]) );
   }
-  r.reserve(p.size() - 2);
-  for(int i = 3; i <= p.size(); i ++) {
-    r.emplace_back(SimpleVector<T>(p[i - 1]).O());
-    for(int j = 0; j < p[i - 1].size(); j ++) {
-      idFeeder<T> buf0(3);
-      idFeeder<T> buf1(3);
-      for(int k = 0; k < 3; k ++) buf0.next(q[k - 3 + i][j] - p[k - 3 + i][j]);
-      for(int k = 0; k < 3; k ++) buf1.next(p[k - 3 + i][j]);
-      r[i - 3][j] = p0maxNext<T>(buf0.res) + p0maxNext<T>(buf1.res);
-    }
+  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+  for(int i = 1; i < q.size(); i ++) q[i] += q[i - 1];
+  for(int i = 1; i < q.size(); i ++) q[i] += q[i - 1];
+  SimpleVector<T> r(p[0].size());
+  for(int j = 0; j < p[0].size(); j ++) {
+    idFeeder<T> buf0(3);
+    idFeeder<T> buf1(3);
+    for(int k = 0; k < 3; k ++) buf0.next(q[k - 3 + q.size()][j] -
+      p[k - 3 + p.size()][j] / T(int(1) << (_P_BIT_ * 2)) );
+    for(int k = 0; k < 3; k ++) buf1.next(p[k - 3 + p.size()][j] / T(int(1) << (_P_BIT_ * 2)) );
+    r[j] = p0maxNext<T>(buf0.res) * p0maxNext<T>(buf1.res) * buf1.res[buf1.res.size() - 1];
   }
-  for(int i = 1; i < r.size(); i ++) r[i] += r[i - 1];
-  for(int i = 1; i < r.size(); i ++) {
-    r[0] += r[i];
-/*
-    if(((i ^ r.size()) & 1) && i < r.size() - 1) {
-      int sum(int(0));
-      for(int j = 0; j < r[0].size(); j ++)
-        sum += int(sgn<T>(r[0][j] *
-          unOffsetHalf<T>(in[(i - int(r.size())) / 2 + in.size()][j]) ));
-      int stat(T(sum) / T(r[0].size()) * T(int(10000)) );
-      printf("%d%c%d%c\n\0", stat / 100, '.', stat % 100, '\%');
-    }
-*/
-  }
-  return r[0];
+  return r;
 }
 
 // N.B. each pixel each bit prediction with PRNG blended stream.

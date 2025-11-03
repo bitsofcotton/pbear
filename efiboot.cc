@@ -23,74 +23,12 @@ const int pdata[] = {
 
 #define _VDIM_ 11
 
-num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& fp, idFeeder<SimpleVector<num_t> >& fm, SimpleVector<num_t>& bb, SimpleVector<num_t>& bp, SimpleVector<num_t>& bm, SimpleVector<num_t>& bs, SimpleVector<num_t>& s0, SimpleVector<num_t>& s1, SimpleMatrix<num_t>& buf) {
-  if(! bb.size()) {
-    bb.entity.resize(_VDIM_, num_t(int(0)));
-    bp.entity.resize(_VDIM_, num_t(int(0)));
-    bm.entity.resize(_VDIM_, num_t(int(0)));
-    bs.entity.resize(_VDIM_ * 2, num_t(int(0)));
-    s0.entity.resize(_VDIM_ * 2, num_t(int(0)));
-    s1.entity.resize(_VDIM_ * 2, num_t(int(0)));
-    fp.next(  bb);
-    fm.next(- bb);
-  }
-  SimpleVector<num_t> v(_VDIM_);
-  for(int i = 0; i < v.size(); i ++)
-    v[i] = random() & 1 ? x : - x;
-  bb = v * num_t(int(2)) - bb;
-  if(! fp.full) {
-    fp.next(  v);
-    fp.next(  bb);
-    fm.next(  v);
-    fm.next(- bb);
-    return num_t(int(0));
-  }
-  fp.next(v);
-  fm.next(v);
-  printf("4");
-  vector<SimpleVector<num_t> > ddfp(delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fp.res.entity) ));
-  vector<SimpleVector<num_t> > ddfm(delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fm.res.entity) ));
-  for(int i = 0; i < ddfp.size(); i ++) ddfp[i] = offsetHalf<num_t>(ddfp[i] /= num_t(int(4)) );
-  for(int i = 0; i < ddfm.size(); i ++) ddfm[i] = offsetHalf<num_t>(ddfm[i] /= num_t(int(4)) );
-  SimpleVector<SimpleVector<num_t> > rdfp;
-  SimpleVector<SimpleVector<num_t> > rdfm;
-  rdfp.entity = move(ddfp);
-  rdfm.entity = move(ddfm);
-  SimpleVector<num_t> p0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp.subVector(2, _P_MLEN_), string("") )) );
-  printf("\b3");
-  SimpleVector<num_t> m0(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm.subVector(2, _P_MLEN_), string("") )) );
-  fp.next(  bb);
-  fm.next(- bb);
-  printf("\b2");
-  ddfp = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fp.res.entity) );
-  ddfm = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fm.res.entity) );
-  for(int i = 0; i < ddfp.size(); i ++) ddfp[i] = offsetHalf<num_t>(ddfp[i] /= num_t(int(4)) );
-  for(int i = 0; i < ddfm.size(); i ++) ddfm[i] = offsetHalf<num_t>(ddfm[i] /= num_t(int(4)) );
-  rdfp.entity = move(ddfp);
-  rdfm.entity = move(ddfm);
-  SimpleVector<num_t> p1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfp.subVector(2, _P_MLEN_), string("") )) );
-  printf("\b1");
-  SimpleVector<num_t> m1(unOffsetHalf<num_t>(pGuarantee<num_t, 0>(rdfm.subVector(2, _P_MLEN_), string("") )) );
-  if(buf.rows() != 3 || buf.cols() != p0.size() * 2) return num_t(int(0));
-  for(int i = 1; i < buf.rows(); i ++) buf.row(i - 1) = buf.row(i);
-  buf.row(buf.rows() - 1).setVector(0, v * num_t(int(2)) - (bp + bm));
-  buf.row(buf.rows() - 1).setVector(v.size(), bp + bm);
-  s1 += (s0 += buf.row(buf.rows() - 1) - bs);
-  num_t rr(int(0));
-  for(int i = 0; i < s1.size() / 2; i ++)
-    rr += (s1[i] + s1[i + s1.size() / 2]) * s1[i + s1.size() / 2];
-  for(int i = 0; i < bs.size(); i ++)
-    bs[i] = pnextcacher<num_t>(buf.rows(), 1).dot(buf.col(i));
-  for(int i = 1; i < buf.rows(); i ++) buf.row(i - 1) = buf.row(i);
-  buf.row(buf.rows() - 1).setVector(0, v * num_t(int(2)) - (p0 + m0));
-  buf.row(buf.rows() - 1).setVector(v.size(), p0 + m0);
-  s1 += (s0 += buf.row(buf.rows() - 1) - bs);
-  for(int i = 0; i < bs.size(); i ++)
-    bs[i] = pnextcacher<num_t>(buf.rows(), 1).dot(buf.col(i));
-  bp = p1;
-  bm = m1;
-  printf("\b");
-  return rr;
+num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& f) {
+  SimpleVector<num_t> v(1);
+  v[0] = x;
+  f.next(v);
+  if(! f.full) return num_t(int(0));
+  return pEachPRNG<num_t, 0>(f.res.entity, string(""))[0];
 }
 
 extern "C" {
@@ -143,11 +81,7 @@ EFI_STATUS calc() {
     printf("%d:", pnextcacher<num_t>(i + 1, 1).size());
   printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
-  idFeeder<SimpleVector<num_t> > fp(_P_MLEN_ + 2);
-  idFeeder<SimpleVector<num_t> > fm(_P_MLEN_ + 2);
-  SimpleVector<num_t> bb, bp, bm, bs, s0, s1;
-  SimpleMatrix<num_t> mbuf(3, _VDIM_ * 2);
-  mbuf.O();
+  idFeeder<SimpleVector<num_t> > f((_P_MLEN_ + 1) / 2);
   int pctr(0);
   while(true)
     switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': case'd': goto bbreak; }
@@ -160,29 +94,25 @@ EFI_STATUS calc() {
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
       buf[i] = '\0';
       num_t nx;
-      if(num_t(int(0)) <
-        next(nx, fp, fm, bb, bp, bm, bs, s0, s1, mbuf)) pctr ++;
+      if(num_t(int(0)) < next(nx, f)) pctr ++;
       break;
     } case 'r': {
       if(num_t(int(0)) <
         next(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
-          num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
-            pctr ++;
+          num_t(int(2)), f) ) pctr ++;
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
       if(num_t(int(0)) <
         next(num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
-          num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
-            pctr ++;
+          num_t(int(2)), f) ) pctr ++;
       break;
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
         if(num_t(int(0)) <
           next(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
-            num_t(int(2)), fp, fm, bb, bp, bm, bs, s0, s1, mbuf) )
-              pctr ++;
+            num_t(int(2)), f) ) pctr ++;
       } else lc --;
       break;
     } }
