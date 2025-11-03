@@ -30,7 +30,7 @@ num_t next(const num_t& x, idFeeder<SimpleVector<num_t> >& f) {
     f.next(v);
     return num_t(int(0));
   }
-  const num_t M(pEachPRNG<num_t, 0>(f.res.entity, string(""))[0]);
+  const num_t M(unOffsetHalf<num_t>(pEachPRNG<num_t, 0>(offsetHalf<num_t>(f.res.entity), string(""))[0]));
   f.next(v);
   return x * M;
 }
@@ -120,8 +120,8 @@ EFI_STATUS calc() {
       } else lc --;
       break;
     } }
-    int per10000(num_t(pctr) / num_t(0 < lc ? lc : 1) * num_t(int(10000)));
-    printf("%d: %d%c%d\r\n\0", lc, (per10000 / 100 ) % 100, '.', per10000 % 100);
+    int per10000(num_t(pctr) / num_t((_P_MLEN_ + 3) / 2 < lc ? lc - (_P_MLEN_ + 3) / 2 : 1) * num_t(int(10000)));
+    printf("%c%d: %d%c%d\r\n\0", m, lc, (per10000 / 100 ) % 100, '.', per10000 % 100);
   }
  bbbreak:
   return EFI_SUCCESS;
