@@ -50,11 +50,33 @@ num_t next(const num_t& x) {
   }
   (*bb) = v * num_t(int(2)) - (*bb);
   if(! fb->full) {
-    fb->next(v);
-    ff->next(v);
     fb->next(   *bb );
     ff->next(- (*bb));
+    fb->next(v);
+    ff->next(v);
     return num_t(int(0));
+  }
+  {
+    SimpleVector<SimpleVector<num_t> > wwb, wwf;
+    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(   *bb).entity));
+    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(- (*bb)).entity));
+    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
+    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
+    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
+    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
+    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
+    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
+  }
+  {
+    SimpleVector<SimpleVector<num_t> > wwb, wwf;
+    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(v).entity));
+    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(v).entity));
+    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
+    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
+    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
+    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
+    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
+    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
   }
   num_t M(int(0));
   {
@@ -67,27 +89,7 @@ num_t next(const num_t& x) {
     buf1.O();
     for(int i = 0; i < buf0.size(); i ++) buf0[i] = p0maxNext<num_t>(off.col(i) - pm->col(i) / num_t(int(1) << (_P_BIT_ * 2)) );
     for(int i = 0; i < buf1.size(); i ++) buf1[i] = p0maxNext<num_t>(pm->col(i) / num_t(int(1) << (_P_BIT_ * 2)) );
-    for(int i = 0; i < buf0.size(); i ++) M += v[i] * buf0[i] * buf1[i] * (* pm)(pm->rows() - 1, i);
-    SimpleVector<SimpleVector<num_t> > wwb, wwf;
-    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(v).entity));
-    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(v).entity));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
-    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
-    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
-  }
-  {
-    SimpleVector<SimpleVector<num_t> > wwb, wwf;
-    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(   *bb ).entity));
-    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(- (*bb)).entity));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
-    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
-    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
+    for(int i = 0; i < buf0.size(); i ++) M += (v[i] * buf0[i] - (*pm)(pm->rows() - 1, i) * buf0[i] + (*pm)(pm->rows() - 1, i) * buf1[i]) * (*pm)(pm->rows() - 1, i) * buf1[i];
   }
   return M;
 }
