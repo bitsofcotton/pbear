@@ -66,11 +66,16 @@ extern "C" {
     efi_heap_init();
     status = BS->HandleProtocol(image, &imgp_guid, (void **)&imgp);
     if (status == EFI_SUCCESS)
-            status = BS->HandleProtocol(imgp->DeviceHandle, &devp_guid,
-                (void **)&dp0);
+      status = BS->HandleProtocol(imgp->DeviceHandle, &devp_guid,
+        (void **)&dp0);
     efi_memprobe();
     simplealloc_init();
-    asm("movq %0, %%rsp; call calc;" :: "r"(efi_loadaddr + KERN_LOADSPACE_SIZE - 8) );
+    unsigned long long stack = 0;
+    status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
+      8 * 1024 * 1024 / (4 * 1024), &stack);
+    if (status != EFI_SUCCESS)
+      panic("BS->AllocatePages()");
+    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 8 * 1024 * 1024 - 32) );
     return EFI_SUCCESS;
   }
 }
@@ -86,7 +91,7 @@ EFI_STATUS calc() {
   printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
   idFeeder<SimpleVector<num_t> > f((_P_MLEN_ + 1) / 2);
-  int pctr(0);
+  int ctr(0);
   while(true)
     switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': case'd': goto bbreak; }
  bbreak:
@@ -98,30 +103,30 @@ EFI_STATUS calc() {
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
       buf[i] = '\0';
       num_t nx;
-      if(num_t(int(0)) < next(nx, f)) pctr ++;
+      if(num_t(int(0)) < next(nx, f)) ctr ++;
       break;
     } case 'r': {
       if(num_t(int(0)) <
         next(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
-          num_t(int(2)), f) ) pctr ++;
+          num_t(int(2)), f) ) ctr ++;
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
       if(num_t(int(0)) <
         next(num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
-          num_t(int(2)), f) ) pctr ++;
+          num_t(int(2)), f) ) ctr ++;
       break;
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
         if(num_t(int(0)) <
           next(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
-            num_t(int(2)), f) ) pctr ++;
+            num_t(int(2)), f) ) ctr ++;
       } else lc --;
       break;
     } }
-    int per10000(num_t(pctr) / num_t((_P_MLEN_ + 3) / 2 < lc ? lc - (_P_MLEN_ + 3) / 2 : 1) * num_t(int(10000)));
-    printf("%c%d: %d%c%d\r\n\0", m, lc, (per10000 / 100 ) % 100, '.', per10000 % 100);
+    const int per10000(num_t(ctr) / num_t((_P_MLEN_ + 3) / 2 < lc ? lc - (_P_MLEN_ + 3) / 2 : 1) * num_t(int(10000)));
+    printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
   }
  bbbreak:
   return EFI_SUCCESS;
