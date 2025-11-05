@@ -48,12 +48,12 @@ num_t next(const num_t& x) {
     fb->next(*bb);
     ff->next(*bb);
   }
-  (*bb) = v * num_t(int(2)) - (*bb);
   if(! fb->full) {
     fb->next(   *bb );
     ff->next(- (*bb));
     fb->next(v);
     ff->next(v);
+    (*bb) = v * num_t(int(2)) - (*bb);
     return num_t(int(0));
   }
   {
@@ -91,6 +91,7 @@ num_t next(const num_t& x) {
     for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
     pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
   }
+  (*bb) = fb->res[fb->res.size() - 1] * num_t(int(2)) - (*bb);
   return M;
 }
 
