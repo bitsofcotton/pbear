@@ -6,11 +6,9 @@ void addbootarg(int, size_t, void *);
 int atexit(void (*function)(void)) { return 0; }
 }
 
-#define M_ALLOC (512 * 1024)
+#define M_ALLOC (1024 * 1024)
 #define assert (void)
 
-#define _P_BIT_  3
-#define _P_MLEN_ 21
 #define _P_PRNG_ 11
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
@@ -20,80 +18,6 @@ typedef myfloat num_t;
 const int pdata[] = {
 #include "pdata.h"
 };
-
-idFeeder<SimpleVector<num_t> > *fb, *ff;
-SimpleVector<num_t> *bb;
-SimpleVector<num_t> *s0, *s1;
-SimpleMatrix<num_t> *pm;
-num_t next(const num_t& x) {
-  SimpleVector<num_t> v(_P_PRNG_);
-  for(int i = 0; i < v.size(); i ++) v[i] = random() & 1 ? - x : x;
-  if(! fb) {
-    fb = SimpleAllocator<idFeeder<SimpleVector<num_t> > >().allocate(1);
-    ff = SimpleAllocator<idFeeder<SimpleVector<num_t> > >().allocate(1);
-    bb = SimpleAllocator<SimpleVector<num_t> >().allocate(1);
-    s0 = SimpleAllocator<SimpleVector<num_t> >().allocate(1);
-    s1 = SimpleAllocator<SimpleVector<num_t> >().allocate(1);
-    pm = SimpleAllocator<SimpleMatrix<num_t> >().allocate(1);
-    ::new ((void*)fb) idFeeder<SimpleVector<num_t> >(_P_MLEN_);
-    ::new ((void*)ff) idFeeder<SimpleVector<num_t> >(_P_MLEN_);
-    ::new ((void*)bb) SimpleVector<num_t>(_P_PRNG_);
-    ::new ((void*)s0) SimpleVector<num_t>(_P_PRNG_);
-    ::new ((void*)s1) SimpleVector<num_t>(_P_PRNG_);
-    ::new ((void*)pm) SimpleMatrix<num_t>(3, _P_PRNG_);
-    bb->O();
-    s0->O();
-    s1->O();
-    pm->O();
-    fb->next(*bb);
-    ff->next(*bb);
-  }
-  if(! fb->full) {
-    fb->next(   *bb );
-    ff->next(- (*bb));
-    fb->next(v);
-    ff->next(v);
-    (*bb) = v * num_t(int(2)) - (*bb);
-    return num_t(int(0));
-  }
-  {
-    SimpleVector<SimpleVector<num_t> > wwb, wwf;
-    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(   *bb).entity));
-    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(- (*bb)).entity));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
-    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
-    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
-  }
-  num_t M(int(0));
-  {
-    SimpleMatrix<num_t> off(pm->rows(), pm->cols());
-    off.O();
-    off.row(off.rows() - 2) = ff->res[ff->res.size() - 2];
-    SimpleVector<num_t> buf0(pm->cols());
-    SimpleVector<num_t> buf1(pm->cols());
-    buf0.O();
-    buf1.O();
-    for(int i = 0; i < buf0.size(); i ++) buf0[i] = p0maxNext<num_t>(off.col(i) - pm->col(i) / num_t(int(1) << (_P_BIT_ * 2)) );
-    for(int i = 0; i < buf1.size(); i ++) buf1[i] = p0maxNext<num_t>(pm->col(i) / num_t(int(1) << (_P_BIT_ * 2)) );
-    for(int i = 0; i < buf0.size(); i ++) M += (v[i] * buf0[i] - (*pm)(pm->rows() - 1, i) * buf0[i] + (*pm)(pm->rows() - 1, i) * buf1[i]) * (*pm)(pm->rows() - 1, i) * buf1[i];
-  }
-  {
-    SimpleVector<SimpleVector<num_t> > wwb, wwf;
-    wwb.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(fb->next(v).entity));
-    wwf.entity = delta<SimpleVector<num_t> >(delta<SimpleVector<num_t> >(ff->next(v).entity));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wb(normalizeS<num_t>(wwb));
-    pair<SimpleVector<SimpleVector<num_t> >, num_t> wf(normalizeS<num_t>(wwf));
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wb.first), string(""))) * wb.second;
-    (*s0) += unOffsetHalf<num_t>(pGuarantee<num_t, 0>(offsetHalf<num_t>(wf.first), string(""))) * wf.second;
-    for(int i = 1; i < pm->rows(); i ++) pm->row(i - 1) = pm->row(i);
-    pm->row(pm->rows() - 1) = ((*s1) += (*s0) / num_t(int(2)));
-  }
-  (*bb) = fb->res[fb->res.size() - 1] * num_t(int(2)) - (*bb);
-  return M;
-}
 
 extern "C" {
   EFI_STATUS calc() ;
@@ -143,18 +67,36 @@ extern "C" {
 EFI_STATUS calc() {
   printf("preparing...\n");
   char buf[0x200];
+  int ctr(0);
+  int tctr(0);
+  int length(0);
   int m('r');
+  idFeeder<SimpleVector<num_t> > b;
   const num_t sq2(sqrt(num_t(int(2)) ));
   const num_t bmqpi(binMargin<num_t>(num_t().quatpi()));
-  for(int i = 0; i < _P_MLEN_; i ++)
-    printf("%d:", pnextcacher<num_t>(i + 1, 1).size());
   printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
-  int ctr(0);
   while(true)
     switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': case'd': goto bbreak; }
  bbreak:
-  for(int lc = 0; ; lc ++) {
+  printf("mode: %c, length? \n", m);
+  while(true) {
+    int buf(efi_cons_getc(0) - '0');
+    if(0 <= buf && buf < 10) length = length * 10 + buf;
+    else break;
+  }
+  printf("length: %d\n", length);
+  pncr_cp = SimpleAllocator<vector<vector<SimpleVector<myfloat> > > >().allocate(1);
+  ::new ((void*)pncr_cp) vector<vector<SimpleVector<myfloat> > >();
+  pncr_cp->resize(length + 1);
+  for(int i = 1; i <= length; i ++) {
+    pnextcacher<num_t>(i, 1);
+    printf("%d:", i);
+  }
+  b = idFeeder<SimpleVector<num_t> >(length);
+  for(int lc = 0; 0 <= lc; lc ++) {
+    SimpleVector<num_t> vbuf(1);
+    vbuf[0] = num_t(int(0));
     int i;
     switch(m) {
     case 'n': {
@@ -162,30 +104,66 @@ EFI_STATUS calc() {
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
       buf[i] = '\0';
       num_t nx;
-      if(num_t(int(0)) < next(nx)) ctr ++;
+      vbuf[0] = nx;
       break;
     } case 'r': {
-      if(num_t(int(0)) <
-        next(num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
-          num_t(int(2)) ) ) ctr ++;
+      vbuf[0] = num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
+          num_t(int(2));
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
-      if(num_t(int(0)) <
-        next(num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
-          num_t(int(2)) ) ) ctr ++;
+      vbuf[0] = num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
+          num_t(int(2));
       break;
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
-        if(num_t(int(0)) <
-          next(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
-            num_t(int(2)) ) ) ctr ++;
-      } else lc --;
+        vbuf[0] = num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
+            num_t(int(2));
+      } else goto lnext;
       break;
     } }
-    const int per10000(num_t(ctr) / num_t(max(int(lc - 10), int(1))) * num_t(int(10000)));
-    printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
+    b.next(vbuf);
+   lnext:
+    if(b.full) {
+      pair<SimpleVector<SimpleVector<num_t> >, num_t> work(normalizeS(b.res));
+      work.first = delta<SimpleVector<num_t> >(work.first);
+      for(int i = 0; i < work.first.size(); i ++) work.first[i] /= num_t(int(2));
+      // XXX:
+      b.res = work.first;
+      for(int i = 0; i < work.first.size(); i += 2)
+        work.first[i] = - work.first[i];
+      SimpleVector<SimpleVector<num_t> > p(pPRNG0<num_t, 0, false>(
+        offsetHalf<num_t>(work.first), 10, string("") ));
+      for(int i = 0; i < p.size(); i ++)
+        p[i] = unOffsetHalf<num_t>(p[i] * work.second);
+      SimpleVector<SimpleVector<num_t> > w(p.size() - 1);
+      for(int i = 0; i < w.size(); i ++) {
+        w[i].resize(p[i].size() * 2);
+        w[i].setVector(0, b.res[i - w.size() + b.res.size()] - p[i]);
+        w[i].setVector(p[i].size(), p[i]);
+      }
+      for(int i = 1; i < w.size(); i ++) w[i] += w[i - 1];
+      SimpleVector<SimpleVector<num_t> > x(w.size());
+      for(int i = 0; i < w.size(); i ++) {
+        x[i].resize(w[i].size() / 2);
+        for(int j = 0; j < x[i].size(); j ++)
+          x[i][j] = (w[i][j] + w[i][w[i].size() / 2 + j]) * w[i][w[i].size() / 2 + j];
+      }
+      for(int i = x.size() - 1; 0 < i; i --)
+        for(int j = 0; j < x[i].size(); j ++) x[i][j] *= x[i - 1][j];
+      x[0].O();
+      for(int i = 0; i < x.size(); i ++) {
+        const num_t j(x[i][0]);
+        if(j == num_t(int(0))) continue;
+        else if(num_t(int(0)) < j) ctr ++;
+        tctr ++;
+        const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
+        printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
+      }
+      b.t = 0;
+      b.full = 0;
+    }
   }
  bbbreak:
   return EFI_SUCCESS;
