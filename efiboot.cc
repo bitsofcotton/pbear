@@ -6,7 +6,7 @@ void addbootarg(int, size_t, void *);
 int atexit(void (*function)(void)) { return 0; }
 }
 
-#define M_ALLOC (1024 * 1024)
+#define M_ALLOC (32 * 1024 * 1024)
 #define assert (void)
 
 #define _P_PRNG_ 33
@@ -26,13 +26,13 @@ extern "C" {
     unsigned long long heap = 0;
     EFI_STATUS status;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      768 * 1024 * 1024 / (4 * 1024), &heap);
+      1024 * 1024 * 1024 / (4 * 1024), &heap);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
     v_alloc = reinterpret_cast<unsigned long long *>(heap);
     in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long));
     last    = heap + M_ALLOC * sizeof(unsigned long long) * 2;
-    sam_upper = heap + 768 * 1024 * 1024;
+    sam_upper = heap + 1024 * 1024 * 1024;
     lastptr = 0;
     return;
   }
@@ -129,8 +129,8 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
-      SimpleVector<SimpleVector<num_t> > p(pPRNG1<num_t, 0>(offsetHalf<num_t>(
-        b.res), 10, string("") ));
+      SimpleVector<SimpleVector<num_t> > p(unOffsetHalf<num_t>(
+        pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") )));
       for(int i = 0; i < p.size() - 1; i ++) {
         const num_t j(p[i][0] * b.res[i - (p.size() - 1) + b.res.size()][0]);
         if(j == num_t(int(0))) continue;
