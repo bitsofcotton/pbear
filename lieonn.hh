@@ -3015,7 +3015,8 @@ template <typename T> SimpleVector<SimpleVector<T> > preAppend(const SimpleVecto
   return res;
 }
 
-template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<SimpleVector<T> > res, const SimpleVector<SimpleVector<T> >& in) {
+template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<SimpleVector<T> > res, const SimpleVector<SimpleVector<T> >& in0) {
+  SimpleVector<SimpleVector<T> > in(delta<SimpleVector<T> >(unOffsetHalf<T>(in0)));
   SimpleVector<SimpleVector<T> > w(res.size());
   for(int i = 0; i < w.size() - 1; i ++) {
     w[i].resize(res[i].size() * 2);
@@ -3035,7 +3036,7 @@ template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<Sim
   for(int i = 0; i < res.size() - 1; i ++)
     for(int j = 0; j < res[i].size(); j ++)
       if(in[i][j] != T(int(0)))
-        res[i][j] /= in[i - (res.size() - 1) + in.size()][j];
+        res[i][j] /= in0[i - (res.size() - 1) + in0.size()][j];
   return res;
 }
 
@@ -3166,9 +3167,15 @@ template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> 
   p = delta<SimpleVector<T> >(p);
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  p = delta<SimpleVector<T> >(unOffsetHalf<T>(pPRNG0<T, nprogress>(
+  SimpleVector<SimpleVector<T> > q(unOffsetHalf<T>(pPRNG0<T, nprogress>(
     offsetHalf<T>(p), bits, string("-") + strloop)));
   p.resize(p.size() - 1);
+  for(int i = 0; i < q.size(); i ++)
+    for(int j = 0; j < q[i].size(); j ++) if(i < q.size() - 1) {
+      const T w(unOffsetHalf<T>(in[i - (q.size() - 1) + in.size()][j]));
+      if(w != T(int(0))) q[i][j] *= p[i - q.size() + p.size()][j] / w;
+    } else q[i][j] *= p[i - q.size() + p.size()][j];
+  q = delta<SimpleVector<T> >(q);
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
   return p;

@@ -129,8 +129,8 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
-      SimpleVector<SimpleVector<num_t> > p(unOffsetHalf<num_t>(
-        pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") )));
+      SimpleVector<SimpleVector<num_t> > p(
+        pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") ));
       for(int i = 0; i < p.size() - 1; i ++) {
         const num_t j(p[i][0] * b.res[i - (p.size() - 1) + b.res.size()][0]);
         if(j == num_t(int(0))) continue;
