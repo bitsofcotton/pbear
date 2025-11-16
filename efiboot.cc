@@ -9,7 +9,7 @@ int atexit(void (*function)(void)) { return 0; }
 #define M_ALLOC (1024 * 1024)
 #define assert (void)
 
-#define _P_PRNG_ 11
+#define _P_PRNG_ 33
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -74,7 +74,10 @@ EFI_STATUS calc() {
   idFeeder<SimpleVector<num_t> > b;
   const num_t sq2(sqrt(num_t(int(2)) ));
   const num_t bmqpi(binMargin<num_t>(num_t().quatpi()));
-  printf("mem usage temporal efficiency nil: %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
+  printf("mem usage temporal efficiency nil: %d, %d, %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
+  npoleM = SimpleAllocator<num_t>().allocate(1);
+  ::new ((void*)npoleM) num_t();
+  * npoleM = atan(num_t(int(1)) / sqrt(SimpleMatrix<num_t>().epsilon() ));
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h)\n");
   while(true)
     switch(m = efi_cons_getc(0)) { case 'n': case 'r': case'k': case'd': goto bbreak; }
@@ -126,35 +129,10 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
-      pair<SimpleVector<SimpleVector<num_t> >, num_t> work(normalizeS(b.res));
-      work.first = delta<SimpleVector<num_t> >(work.first);
-      for(int i = 0; i < work.first.size(); i ++) work.first[i] /= num_t(int(2));
-      // XXX:
-      b.res = work.first;
-      for(int i = 0; i < work.first.size(); i += 2)
-        work.first[i] = - work.first[i];
-      SimpleVector<SimpleVector<num_t> > p(pPRNG0<num_t, 0, false>(
-        offsetHalf<num_t>(work.first), 10, string("") ));
-      for(int i = 0; i < p.size(); i ++)
-        p[i] = unOffsetHalf<num_t>(p[i] * work.second);
-      SimpleVector<SimpleVector<num_t> > w(p.size() - 1);
-      for(int i = 0; i < w.size(); i ++) {
-        w[i].resize(p[i].size() * 2);
-        w[i].setVector(0, b.res[i - w.size() + b.res.size()] - p[i]);
-        w[i].setVector(p[i].size(), p[i]);
-      }
-      for(int i = 1; i < w.size(); i ++) w[i] += w[i - 1];
-      SimpleVector<SimpleVector<num_t> > x(w.size());
-      for(int i = 0; i < w.size(); i ++) {
-        x[i].resize(w[i].size() / 2);
-        for(int j = 0; j < x[i].size(); j ++)
-          x[i][j] = (w[i][j] + w[i][w[i].size() / 2 + j]) * w[i][w[i].size() / 2 + j];
-      }
-      for(int i = x.size() - 1; 0 < i; i --)
-        for(int j = 0; j < x[i].size(); j ++) x[i][j] *= x[i - 1][j];
-      x[0].O();
-      for(int i = 0; i < x.size(); i ++) {
-        const num_t j(x[i][0]);
+      SimpleVector<SimpleVector<num_t> > p(pPRNG1<num_t, 0>(offsetHalf<num_t>(
+        b.res), 10, string("") ));
+      for(int i = 0; i < p.size() - 1; i ++) {
+        const num_t j(p[i][0] * b.res[i - (p.size() - 1) + b.res.size()][0]);
         if(j == num_t(int(0))) continue;
         else if(num_t(int(0)) < j) ctr ++;
         tctr ++;
