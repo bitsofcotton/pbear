@@ -3036,7 +3036,7 @@ template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<Sim
   for(int i = 0; i < res.size() - 1; i ++)
     for(int j = 0; j < res[i].size(); j ++)
       if(in[i][j] != T(int(0)))
-        res[i][j] /= in0[i - (res.size() - 1) + in0.size()][j];
+        res[i][j] /= unOffsetHalf<T>(in0[i - (res.size() - 1) + in0.size()][j]);
   return res;
 }
 
@@ -3176,8 +3176,8 @@ template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> 
       if(w != T(int(0))) q[i][j] *= p[i - q.size() + p.size()][j] / w;
     } else q[i][j] *= p[i - q.size() + p.size()][j];
   q = delta<SimpleVector<T> >(q);
-  for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
-  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+  for(int i = 0; i < q.size(); i += 2) q[i] = - q[i];
+  for(int i = 1; i < q.size(); i ++) q[i] += q[i - 1];
   return p;
 }
 
