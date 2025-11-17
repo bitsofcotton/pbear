@@ -3009,28 +3009,16 @@ template <typename T, int nprogress> static inline SimpleVector<T> pGuarantee(co
 }
 
 // N.B. pre/post process
-template <typename T> SimpleVector<SimpleVector<T> > preAppend(const SimpleVector<SimpleVector<T> >& in) {
-  SimpleVector<SimpleVector<T> > res(delta<SimpleVector<T> >(unOffsetHalf<T>(in)));
+template <typename T> static inline SimpleVector<SimpleVector<T> > preAppend(const SimpleVector<SimpleVector<T> >& in) {
+  SimpleVector<SimpleVector<T> > res(unOffsetHalf<T>(in));
   for(int i = 0; i < res.size(); i += 2) res[i] = - res[i];
   return res;
 }
 
-template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<SimpleVector<T> > res, const SimpleVector<SimpleVector<T> >& in0) {
-  SimpleVector<SimpleVector<T> > in(delta<SimpleVector<T> >(unOffsetHalf<T>(in0)));
-  SimpleVector<SimpleVector<T> > w(res.size());
-  for(int i = 0; i < w.size() - 1; i ++) {
-    w[i].resize(res[i].size() * 2);
-    w[i].setVector(0, in[i - (w.size() - 1) + in.size()] - res[i]);
-    w[i].setVector(res[i].size(), res[i]);
-  }
-  w[w.size() - 1].resize(res[res.size() - 1].size() * 2);
-  w[w.size() - 1].O().setVector(res[res.size() - 1].size(), res[res.size() - 1]);
-  for(int i = 1; i < w.size(); i ++) w[i] += w[i - 1];
-  for(int i = 0; i < w.size() - 1; i ++)
+template <typename T> static inline SimpleVector<SimpleVector<T> > postAppend(SimpleVector<SimpleVector<T> > res, const SimpleVector<SimpleVector<T> >& in) {
+  for(int i = 0; i < res.size() - 1; i ++)
     for(int j = 0; j < res[i].size(); j ++)
-      res[i][j] = (w[i][j] + w[i][w[i].size() / 2 + j]) *
-        w[i][w[i].size() / 2 + j];
-  res[res.size() - 1] = w[w.size() - 1].subVector(res[0].size(), res[0].size());
+      res[i][j] *= in[i - (res.size() - 1) + in.size()][j];
   for(int i = 1; i < res.size(); i ++)
     for(int j = 0; j < res[i].size(); j ++) res[i][j] *= res[i - 1][j];
   return res;
@@ -3039,7 +3027,7 @@ template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<Sim
 //      stream but the predictor isn't depend pseudo-things.
 //      also add whole context length markov feeding.
 //      also this feeds something dense and as a result continuous to predictor.
-template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pAppendMeasure0(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pAppendMeasure0(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   assert(0 < bits);
   pair<SimpleVector<SimpleVector<T> >, T> wp(normalizeS<T>(
     delta<SimpleVector<T> >(delta<SimpleVector<T> >(in)) ));
@@ -3058,22 +3046,7 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pAppendMeasu
   for(int i = 0; i < p.size(); i ++) p[i] *= wp.second;
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  SimpleVector<SimpleVector<T> > res;
-  res.entity.reserve(p.size() - 2);
-  for(int i0 = 2; i0 < p.size(); i0 ++) {
-    SimpleVector<T> plast(p[0]);
-    for(int i = 1; i < i0 - 2; i ++) plast += p[i];
-    // N.B. we take focus on only msb, otherwise the accuracy going to be null.
-    plast += p[i0 - 2] * T(int(3)) / T(int(4));
-    plast /= T(i0 - 1);
-    SimpleVector<SimpleVector<T> > pp(p.subVector(0, i0 + 1));
-    for(int i = 0; i < pp.size(); i ++) pp[i] -= plast;
-    for(int i = 1; i < pp.size(); i ++) pp[i] += pp[i - 1];
-    // N.B. somehow, ||in[i0]|| << ||pp[i0]||
-    res.entity.emplace_back(i0 & 1 ? move(pp[i0]) : - pp[i0]);
-  }
-  // N.B. we need (p B |) p s | p0 0 1 after this line.
-  return res;
+  return p;
 }
 
 template <typename T, int nprogress> static inline SimpleVector<T> pAppendMeasure(const SimpleVector<SimpleVector<T> >& in0, const int& bits, const string& strloop) {
@@ -3118,11 +3091,11 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNG0(const
     in.entity.emplace_back(work);
   }
   if(_P_PRNG_ <= 1) {
-    SimpleVector<SimpleVector<T> > res(offsetHalf<T>(postAppend<T>(
-      pAppendMeasure0<T, nprogress>(in, bits, strloop), in)) );
+    SimpleVector<SimpleVector<T> > res(offsetHalf<T>(
+      pAppendMeasure0<T, nprogress>(in, bits, strloop) ));
     for(int i = 0; i < res.size(); i ++)
       res[i] = bitsG<T, true>(res[i], - bits);
-    return res;
+    return postAppend<T>(unOffsetHalf<T>(res), unOffsetHalf<T>(in0));
   }
   SimpleVector<SimpleVector<T> > prng(in.size() + 1);
   for(int j = 0; j < prng.size(); j ++) {
@@ -3140,8 +3113,8 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNG0(const
     for(int k = 0; k < work[j].size(); k ++) work[j][k] = offsetHalf<T>(
       prng[j][k] * unOffsetHalf<T>(in[j][k / _P_PRNG_]) );
   }
-  SimpleVector<SimpleVector<T> > res(postAppend<T>(
-    pAppendMeasure0<T, nprogress>(work, bits, strloop), work));
+  SimpleVector<SimpleVector<T> > res(
+    pAppendMeasure0<T, nprogress>(work, bits, strloop) );
   SimpleVector<SimpleVector<T> > out(res.size());
   for(int i = 0; i < out.size(); i ++) {
     out[i].resize(in[0].size());
@@ -3151,20 +3124,12 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNG0(const
         prng[i - out.size() + prng.size()][j];
     out[i] = bitsG<T, true>(offsetHalf<T>(out[i]), - bits);
   }
-  return out;
+  return postAppend<T>(unOffsetHalf<T>(out), unOffsetHalf<T>(in0));
 }
 
 template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pPRNG1(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
-  SimpleVector<SimpleVector<T> > p(delta<SimpleVector<T> >(unOffsetHalf<T>(
-    pPRNG0<T, nprogress>(in, bits, string("+") + strloop) )));
-  for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
-  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  p = delta<SimpleVector<T> >(unOffsetHalf<T>(
-    pPRNG0<T, nprogress>(offsetHalf<T>(p), bits, string("-") + strloop) ));
-  p.resize(p.size() - 1);
-  for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
-  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  return p;
+  return pPRNG0<T, nprogress>(offsetHalf<T>(pPRNG0<T, nprogress>(
+    in, bits, string("+") + strloop)), bits, string("-") + strloop);
 }
 
 template <typename T, int nprogress> static inline SimpleVector<T> pPRNG(const SimpleVector<SimpleVector<T> >& in0, const int& bits, const string& strloop) {
