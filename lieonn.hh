@@ -3033,10 +3033,6 @@ template <typename T> SimpleVector<SimpleVector<T> > postAppend(SimpleVector<Sim
   res[res.size() - 1] = w[w.size() - 1].subVector(res[0].size(), res[0].size());
   for(int i = 1; i < res.size(); i ++)
     for(int j = 0; j < res[i].size(); j ++) res[i][j] *= res[i - 1][j];
-  for(int i = 0; i < res.size() - 1; i ++)
-    for(int j = 0; j < res[i].size(); j ++)
-      if(in[i][j] != T(int(0)))
-        res[i][j] /= unOffsetHalf<T>(in0[i - (res.size() - 1) + in0.size()][j]);
   return res;
 }
 
@@ -3159,25 +3155,15 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNG0(const
 }
 
 template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pPRNG1(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
-  SimpleVector<SimpleVector<T> > p(unOffsetHalf<T>(
-    pPRNG0<T, nprogress>(in, bits, string("+") + strloop)));
-  for(int i = 0; i < p.size() - 1; i ++)
-    for(int j = 0; j < p[i].size(); j ++)
-      p[i][j] *= unOffsetHalf<T>(in[i - (p.size() - 1) + in.size()][j]);
-  p = delta<SimpleVector<T> >(p);
+  SimpleVector<SimpleVector<T> > p(delta<SimpleVector<T> >(unOffsetHalf<T>(
+    pPRNG0<T, nprogress>(in, bits, string("+") + strloop) )));
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  SimpleVector<SimpleVector<T> > q(unOffsetHalf<T>(pPRNG0<T, nprogress>(
-    offsetHalf<T>(p), bits, string("-") + strloop)));
+  p = delta<SimpleVector<T> >(unOffsetHalf<T>(
+    pPRNG0<T, nprogress>(in, bits, string("+") + strloop) ));
   p.resize(p.size() - 1);
-  for(int i = 0; i < q.size(); i ++)
-    for(int j = 0; j < q[i].size(); j ++) if(i < q.size() - 1) {
-      const T w(unOffsetHalf<T>(in[i - (q.size() - 1) + in.size()][j]));
-      if(w != T(int(0))) q[i][j] *= p[i - q.size() + p.size()][j] / w;
-    } else q[i][j] *= p[i - q.size() + p.size()][j];
-  q = delta<SimpleVector<T> >(q);
-  for(int i = 0; i < q.size(); i += 2) q[i] = - q[i];
-  for(int i = 1; i < q.size(); i ++) q[i] += q[i - 1];
+  for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
+  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
   return p;
 }
 

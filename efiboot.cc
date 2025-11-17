@@ -26,13 +26,13 @@ extern "C" {
     unsigned long long heap = 0;
     EFI_STATUS status;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      1024 * 1024 * 1024 / (4 * 1024), &heap);
+      1400 * 1024 * 1024 / (4 * 1024), &heap);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
     v_alloc = reinterpret_cast<unsigned long long *>(heap);
     in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long));
     last    = heap + M_ALLOC * sizeof(unsigned long long) * 2;
-    sam_upper = heap + 1024 * 1024 * 1024;
+    sam_upper = heap + 1400 * 1024 * 1024;
     lastptr = 0;
     return;
   }
@@ -72,9 +72,8 @@ EFI_STATUS calc() {
   int length(0);
   int m('r');
   idFeeder<SimpleVector<num_t> > b;
-  const num_t sq2(sqrt(num_t(int(2)) ));
-  const num_t bmqpi(binMargin<num_t>(num_t().quatpi()));
-  printf("mem usage temporal efficiency nil: %d, %d, %d, %d, %d, %d\n", sq2.m, sq2.e, bmqpi.m, bmqpi.e);
+  const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi())));
+  printf("mem usage temporal efficiency nil: %d, %d\n", bmsqpi.m, bmsqpi.e);
   npoleM = SimpleAllocator<num_t>().allocate(1);
   ::new ((void*)npoleM) num_t();
   * npoleM = atan(num_t(int(1)) / sqrt(SimpleMatrix<num_t>().epsilon() ));
@@ -93,8 +92,13 @@ EFI_STATUS calc() {
   ::new ((void*)pncr_cp) vector<vector<SimpleVector<myfloat> > >();
   pncr_cp->resize(length + 1);
   for(int i = 1; i <= length; i ++) {
-    pnextcacher<num_t>(i, 1);
-    printf("%d:", i);
+    (*pncr_cp)[i].resize(2);
+    (*pncr_cp)[i][1].resize(i);
+    const int& size(i);
+    const int  step(1);
+    const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
+    for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
+    printf("%d:", (*pncr_cp)[i][1].size());
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
@@ -132,7 +136,7 @@ EFI_STATUS calc() {
       SimpleVector<SimpleVector<num_t> > p(
         pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") ));
       for(int i = 0; i < p.size() - 1; i ++) {
-        const num_t j(p[i][0] * b.res[i - (p.size() - 1) + b.res.size()][0]);
+        const num_t& j(p[i][0]);
         if(j == num_t(int(0))) continue;
         else if(num_t(int(0)) < j) ctr ++;
         tctr ++;
