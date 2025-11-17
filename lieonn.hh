@@ -3079,7 +3079,7 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pAppendMeasu
 template <typename T, int nprogress> static inline SimpleVector<T> pAppendMeasure(const SimpleVector<SimpleVector<T> >& in0, const int& bits, const string& strloop) {
   SimpleVector<SimpleVector<T> > in(preAppend<T>(in0));
   SimpleVector<SimpleVector<T> > p(postAppend<T>(
-    pAppendMeasure0<T, nprogress, true>(in, bits, strloop), in));
+    pAppendMeasure0<T, nprogress>(in, bits, strloop), in));
   return p[p.size() - 1];
 }
 
@@ -3160,7 +3160,7 @@ template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> 
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
   p = delta<SimpleVector<T> >(unOffsetHalf<T>(
-    pPRNG0<T, nprogress>(in, bits, string("+") + strloop) ));
+    pPRNG0<T, nprogress>(offsetHalf<T>(p), bits, string("-") + strloop) ));
   p.resize(p.size() - 1);
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];

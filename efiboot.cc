@@ -69,6 +69,7 @@ EFI_STATUS calc() {
   char buf[0x200];
   int ctr(0);
   int tctr(0);
+  int mctr(0);
   int length(0);
   int m('r');
   idFeeder<SimpleVector<num_t> > b;
@@ -135,14 +136,21 @@ EFI_STATUS calc() {
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
         pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") ));
+      int lctr(0);
+      int ltctr(0);
       for(int i = 0; i < p.size() - 1; i ++) {
         const num_t& j(p[i][0]);
         if(j == num_t(int(0))) continue;
-        else if(num_t(int(0)) < j) ctr ++;
-        tctr ++;
-        const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
+        else if(num_t(int(0)) < j) lctr ++;
+        ltctr ++;
+        const int per10000(num_t(ctr + lctr) / num_t(max(int(tctr + ltctr), int(1))) * num_t(int(10000)));
         printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
       }
+      ctr  += lctr;
+      tctr += ltctr;
+      mctr += max(lctr, ltctr - lctr);
+      const int per10000(num_t(mctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
+      printf("%c%dM: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
       b.t = 0;
       b.full = 0;
     }
