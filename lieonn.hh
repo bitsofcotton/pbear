@@ -2836,9 +2836,8 @@ template <typename T> static inline SimpleVector<SimpleVector<SimpleVector<T> > 
 template <typename T> static inline SimpleVector<SimpleVector<T> > normalize(const SimpleVector<SimpleVector<T> >& in, const T& upper = T(1)) {
   SimpleMatrix<T> w;
   w.resize(in.size(), in[0].size());
-  w.entity  = in.entity;
-  in.entity = normalize<T>(w, upper).entity;
-  return in;
+  w.entity  = in;
+  return normalize<T>(w, upper).entity;
 }
 
 template <typename T> static inline SimpleVector<T> normalize(const SimpleVector<T>& in, const T& upper = T(1)) {
@@ -3018,9 +3017,9 @@ template <typename T> static inline SimpleVector<SimpleVector<T> > preAppend(con
 template <typename T> static inline SimpleVector<SimpleVector<T> > postAppend(SimpleVector<SimpleVector<T> > res, const SimpleVector<SimpleVector<T> >& in) {
   for(int i = 0; i < res.size() - 1; i ++)
     for(int j = 0; j < res[i].size(); j ++)
-      res[i][j] *= sgn<T>(in[i - (res.size() - 1) + in.size()][j]);
+      res[i][j] *= in[i - (res.size() - 1) + in.size()][j];
   for(int i = 1; i < res.size(); i ++)
-    for(int j = 0; j < res[i].size(); j ++) res[i][j] *= sgn<T>(res[i - 1][j]);
+    for(int j = 0; j < res[i].size(); j ++) res[i][j] *= res[i - 1][j];
   return res;
 }
 
@@ -3056,7 +3055,7 @@ template <typename T, int nprogress> static inline SimpleVector<T> pAppendMeasur
 }
 
 #if !defined(_P_PRNG_)
-#define _P_PRNG_ 1
+#define _P_PRNG_ 11
 #endif
 
 // N.B. each pixel prediction with PRNG blended stream.
@@ -3128,29 +3127,23 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNG0(const
 
 template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pPRNG1(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   SimpleVector<SimpleVector<T> > ind(delta<SimpleVector<T> >(in));
-  SimpleVector<SimpleVector<T> > p(unOffsetHalf<T>(
-    pPRNG0<T, nprogress>(ind, bits, string("+") + strloop) ));
+  SimpleVector<SimpleVector<T> > p(
+    pPRNG0<T, nprogress>(ind, bits, string("+") + strloop) );
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
-  p = unOffsetHalf<T>(pPRNG0<T, nprogress>(
-    offsetHalf<T>(p), bits, string("-") + strloop));
+  p = pPRNG0<T, nprogress>(
+    offsetHalf<T>(p), bits, string("-") + strloop);
   p.resize(p.size() - 1);
   for(int i = 0; i < p.size(); i += 2) p[i] = - p[i];
-  for(int i = 0; i < p.size() - 1; i ++) {
+  for(int i = 0; i < p.size() - 1; i ++)
     for(int j = 0; j < p[i].size(); j ++)
-      p[i][j] /= sgn<T>(ind[i - (p.size() - 1) + in.size()][j]);
-    p[i] += in[i - p.size() + in.size()];
-    for(int j = 0; j < p[i].size(); j ++)
-      p[i][j] *= in[i - (p.size() - 1) + in.size()][j];
-  }
-  p[p.size() - 1] += in[in.size() - 1];
-  SimpleVector<int> c(p[0].size());
-  c.O();
-    for(int i = 0; i < p.size() - 1; i ++)
-    for(int j = 0; j < c.size(); j ++)
-      if(p[i][j] < T(int(0))) c[j] --;
-      else if(T(int(0)) < p[i][j]) c[j] ++;
-  for(int j = 0; j < c.size(); j ++) if(c[j] < 0)
-    p[p.size() - 1][j] = - p[p.size() - 1][j];
+      if((p[i][j] + in[i - p.size() + in.size()][j]) *
+        in[i - p.size() + in.size()][j] < T(int(0)) )
+        p[i][j] = T(int(0));
+      else {
+        p[i][j] += in[i - p.size() + in.size()][j];
+        p[i][j] *= in[i - (p.size() - 1) + in.size()][j];
+      }
+  //p[p.size() - 1] += in[in.size() - 1];
   return p;
 }
 
