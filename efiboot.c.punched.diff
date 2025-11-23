@@ -36,60 +36,275 @@
 < 	/* retry once in case of failure */
 ---
 > 	// retry once in case of failure
-194c194
+177,242d176
+< void
+< efi_diskprobe(void)
+< {
+< 	int			 i, bootdev = 0, depth = -1;
+< 	UINTN			 sz;
+< 	EFI_STATUS		 status;
+< 	EFI_HANDLE		*handles = NULL;
+< 	EFI_BLOCK_IO		*blkio;
+< 	EFI_BLOCK_IO_MEDIA	*media;
+< 	struct diskinfo		*di;
+< 	EFI_DEVICE_PATH		*dp;
+< 
+< 	TAILQ_INIT(&efi_disklist);
+< 
+< 	sz = 0;
+< 	status = BS->LocateHandle(ByProtocol, &blkio_guid, 0, &sz, 0);
+< 	if (status == EFI_BUFFER_TOO_SMALL) {
 < 		handles = alloc(sz);
----
-> 		handles = (EFI_HANDLE*)alloc(sz);
-222c222
+< 		status = BS->LocateHandle(ByProtocol, &blkio_guid,
+< 		    0, &sz, handles);
+< 	}
+< 	if (handles == NULL || EFI_ERROR(status))
+< 		panic("BS->LocateHandle() returns %d", status);
+< 
+< 	if (efi_bootdp != NULL)
+< 		depth = efi_device_path_depth(efi_bootdp, MEDIA_DEVICE_PATH);
+< 
+< 	/*
+< 	 * U-Boot incorrectly represents devices with a single
+< 	 * MEDIA_DEVICE_PATH component.  In that case include that
+< 	 * component into the matching, otherwise we'll blindly select
+< 	 * the first device.
+< 	 */
+< 	if (depth == 0)
+< 		depth = 1;
+< 
+< 	for (i = 0; i < sz / sizeof(EFI_HANDLE); i++) {
+< 		status = BS->HandleProtocol(handles[i], &blkio_guid,
+< 		    (void **)&blkio);
+< 		if (EFI_ERROR(status))
+< 			panic("BS->HandleProtocol() returns %d", status);
+< 
+< 		media = blkio->Media;
+< 		if (media->LogicalPartition || !media->MediaPresent)
+< 			continue;
 < 		di = alloc(sizeof(struct diskinfo));
----
-> 		di = (struct diskinfo*)alloc(sizeof(struct diskinfo));
-349c349
+< 		efid_init(di, blkio);
+< 
+< 		if (efi_bootdp == NULL || depth == -1 || bootdev != 0)
+< 			goto next;
+< 		status = BS->HandleProtocol(handles[i], &devp_guid,
+< 		    (void **)&dp);
+< 		if (EFI_ERROR(status))
+< 			goto next;
+< 		if (efi_device_path_ncmp(efi_bootdp, dp, depth) == 0) {
+< 			TAILQ_INSERT_HEAD(&efi_disklist, di, list);
+< 			bootdev = 1;
+< 			continue;
+< 		}
+< next:
+< 		TAILQ_INSERT_TAIL(&efi_disklist, di, list);
+< 	}
+< 
+< 	free(handles, sz);
+< }
+< 
+349c283
 < 	mm = alloc(siz);
 ---
 > 	mm = (EFI_MEMORY_DESCRIPTOR*)alloc(siz);
-688c688
+688c622
 < 		handles = alloc(sz);
 ---
 > 		handles = (EFI_HANDLE*)alloc(sz);
-710c710
+710c644
 < 			dpp = (EFI_DEV_PATH_PTR)dp;
 ---
 > 			dpp = *(EFI_DEV_PATH_PTR*)(void*)dp;
-758,759c758,759
+758,759c692,693
 < 		    serio->Mode->Timeout, serio->Mode->Parity,
 < 		    serio->Mode->DataBits, serio->Mode->StopBits);
 ---
 > 		    serio->Mode->Timeout, (EFI_PARITY_TYPE)serio->Mode->Parity,
 > 		    serio->Mode->DataBits, (EFI_STOP_BITS_TYPE)serio->Mode->StopBits);
-998c998
+867,985d800
+< void
+< efi_makebootargs(void)
+< {
+< 	int			 i;
+< 	EFI_STATUS		 status;
+< 	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION
+< 				*gopi;
+< 	bios_efiinfo_t		*ei = &bios_efiinfo;
+< 	int			 curmode;
+< 	UINTN			 sz, gopsiz, bestsiz = 0;
+< 
+< 	/*
+< 	 * ACPI, BIOS configuration table
+< 	 */
+< 	for (i = 0; i < ST->NumberOfTableEntries; i++) {
+< 		if (efi_guidcmp(&acpi_guid,
+< 		    &ST->ConfigurationTable[i].VendorGuid) == 0)
+< 			ei->config_acpi = (uintptr_t)
+< 			    ST->ConfigurationTable[i].VendorTable;
+< 		else if (efi_guidcmp(&smbios_guid,
+< 		    &ST->ConfigurationTable[i].VendorGuid) == 0)
+< 			ei->config_smbios = (uintptr_t)
+< 			    ST->ConfigurationTable[i].VendorTable;
+< 		else if (efi_guidcmp(&esrt_guid,
+< 		    &ST->ConfigurationTable[i].VendorGuid) == 0)
+< 			ei->config_esrt = (uintptr_t)
+< 			    ST->ConfigurationTable[i].VendorTable;
+< 	}
+< 
+< 	/*
+< 	 * Need to copy ESRT because call to ExitBootServices() frees memory of
+< 	 * type EfiBootServicesData in which ESRT resides.
+< 	 */
+< 	if (ei->config_esrt != 0) {
+< 		EFI_SYSTEM_RESOURCE_TABLE *esrt =
+< 		    (EFI_SYSTEM_RESOURCE_TABLE *)ei->config_esrt;
+< 		size_t esrt_size = sizeof(*esrt) +
+< 		    esrt->FwResourceCount * sizeof(EFI_SYSTEM_RESOURCE_ENTRY);
+< 		void *esrt_copy;
+< 
+< 		/*
+< 		 * Using EfiRuntimeServicesData as it maps to BIOS_MAP_RES,
+< 		 * while EfiLoaderData becomes BIOS_MAP_FREE.
+< 		 */
+< 		status = BS->AllocatePool(EfiRuntimeServicesData,
+< 		    esrt_size, &esrt_copy);
+< 		if (status == EFI_SUCCESS) {
+< 			memcpy(esrt_copy, esrt, esrt_size);
+< 			ei->config_esrt = (uintptr_t)esrt_copy;
+< 			ei->flags |= BEI_ESRT;
+< 		}
+< 	}
+< 
+< 	/*
+< 	 * Frame buffer
+< 	 */
+< 	if (gop != NULL) {
+< 		if (gopmode < 0) {
+< 			for (i = 0; i < gop->Mode->MaxMode; i++) {
+< 				status = gop->QueryMode(gop, i, &sz, &gopi);
+< 				if (EFI_ERROR(status))
+< 					continue;
+< 				gopsiz = gopi->HorizontalResolution *
+< 				    gopi->VerticalResolution;
+< 				if (gopsiz > bestsiz) {
+< 					gopmode = i;
+< 					bestsiz = gopsiz;
+< 				}
+< 			}
+< 		}
+< 		if (gopmode >= 0 && gopmode != gop->Mode->Mode) {
+< 			curmode = gop->Mode->Mode;
+< 			if (efi_gop_setmode(gopmode) != EFI_SUCCESS)
+< 				(void)efi_gop_setmode(curmode);
+< 		}
+< 
+< 		gopi = gop->Mode->Info;
+< 		switch (gopi->PixelFormat) {
+< 		case PixelBlueGreenRedReserved8BitPerColor:
+< 			ei->fb_red_mask      = 0x00ff0000;
+< 			ei->fb_green_mask    = 0x0000ff00;
+< 			ei->fb_blue_mask     = 0x000000ff;
+< 			ei->fb_reserved_mask = 0xff000000;
+< 			break;
+< 		case PixelRedGreenBlueReserved8BitPerColor:
+< 			ei->fb_red_mask      = 0x000000ff;
+< 			ei->fb_green_mask    = 0x0000ff00;
+< 			ei->fb_blue_mask     = 0x00ff0000;
+< 			ei->fb_reserved_mask = 0xff000000;
+< 			break;
+< 		case PixelBitMask:
+< 			ei->fb_red_mask = gopi->PixelInformation.RedMask;
+< 			ei->fb_green_mask = gopi->PixelInformation.GreenMask;
+< 			ei->fb_blue_mask = gopi->PixelInformation.BlueMask;
+< 			ei->fb_reserved_mask =
+< 			    gopi->PixelInformation.ReservedMask;
+< 			break;
+< 		default:
+< 			break;
+< 		}
+< 		ei->fb_addr = gop->Mode->FrameBufferBase;
+< 		ei->fb_size = gop->Mode->FrameBufferSize;
+< 		ei->fb_height = gopi->VerticalResolution;
+< 		ei->fb_width = gopi->HorizontalResolution;
+< 		ei->fb_pixpsl = gopi->PixelsPerScanLine;
+< 	}
+< 
+< 	/*
+< 	 * EFI system table
+< 	 */
+< 	ei->system_table = (uintptr_t)ST;
+< 
+< #ifdef __amd64__
+< 	ei->flags |= BEI_64BIT;
+< #endif
+< 
+< 	addbootarg(BOOTARG_EFIINFO, sizeof(bios_efiinfo), &bios_efiinfo);
+< }
+< 
+998c813
 < 	EFI_DEVICE_PATH *dp = (void *)data;
 ---
 > 	EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH*)(void *)data;
-1013c1013
+1013c828
 < 	status = RS->GetVariable(L"ConOut", &global, NULL, &size, &data);
 ---
 > 	status = RS->GetVariable((CHAR16*)(void*)L"ConOut", &global, NULL, &size, &data);
-1015c1015
+1015c830
 < 		for (dp = (void *)data; !IsDevicePathEnd(dp);
 ---
 > 		for (dp = (EFI_DEVICE_PATH*)(void *)data; !IsDevicePathEnd(dp);
-1109,1110c1109
+1047d861
+< 	addbootarg(BOOTARG_CONSDEV, sizeof(cd), &cd);
+1109,1110c923
 < #ifdef IDLE_POWEROFF
 < CHAR16		*idle_name = L"IdlePoweroff";
 ---
 > CHAR16		*idle_name = (CHAR16*)(void*)L"IdlePoweroff";
-1158d1156
+1158d970
 < #endif /* IDLE_POWEROFF */
-1245d1242
+1177,1184d988
+< 	if (cmd.argc >= 2) {
+< 		mode = strtol(cmd.argv[1], NULL, 10);
+< 		if (0 <= mode && mode < nitems(efi_video) &&
+< 		    efi_video[mode].cols > 0) {
+< 			conout->SetMode(conout, mode);
+< 			efi_video_reset();
+< 		}
+< 	} else {
+1193d996
+< 	}
+1219,1228d1021
+< 	if (cmd.argc >= 2) {
+< 		mode = strtol(cmd.argv[1], NULL, 10);
+< 		if (0 <= mode && mode < gop->Mode->MaxMode) {
+< 			status = gop->QueryMode(gop, mode, &sz, &gopi);
+< 			if (!EFI_ERROR(status)) {
+< 				if (efi_gop_setmode(mode) == EFI_SUCCESS)
+< 					gopmode = mode;
+< 			}
+< 		}
+< 	} else {
+1239d1031
+< 	}
+1245d1036
 < #ifdef IDLE_POWEROFF
-1261d1257
+1249,1255d1039
+< 	if (cmd.argc >= 2) {
+< 		int secs;
+< 
+< 		secs = strtol(cmd.argv[1], NULL, 10);
+< 		if (0 <= secs && secs < UINT16_MAX)
+< 			set_idle_timeout(secs);
+< 	} else {
+1258d1041
+< 	}
+1261d1043
 < #endif /* IDLE_POWEROFF */
-1272c1268
+1272c1054
 < 	status = RS->GetVariable(L"OsIndicationsSupported", &global, NULL,
 ---
 > 	status = RS->GetVariable((CHAR16*)(void*)L"OsIndicationsSupported", &global, NULL,
-1288c1284
+1288c1070
 < 	status = RS->SetVariable(L"OsIndications", &global, osind_attrs,
 ---
 > 	status = RS->SetVariable((CHAR16*)(void*)L"OsIndications", &global, osind_attrs,

@@ -1,9 +1,31 @@
 /* p-patch parts */
 extern "C" {
 #include <sys/types.h>
-void addbootarg(int, size_t, void *);
 #include "efiboot.c.punched"
 int atexit(void (*function)(void)) { return 0; }
+__dead void
+panic(const char *fmt, ...)
+{
+        va_list ap;
+        static int paniced;
+
+        if (!paniced) {
+                paniced = 1;
+        }
+
+        va_start(ap, fmt);
+        vprintf(fmt, ap);
+        printf("\n");
+        va_end(ap);
+        _rtt();
+        /*NOTREACHED*/
+}
+struct consdev constab[] = {
+        { efi_cons_probe, efi_cons_init, efi_cons_getc, efi_cons_putc },
+        { efi_com_probe, efi_com_init, efi_com_getc, efi_com_putc },
+        { NULL }
+};
+struct consdev *cn_tab = constab;
 }
 
 #define M_ALLOC (32 * 1024 * 1024)

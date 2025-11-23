@@ -1,8 +1,44 @@
-29c29
+29,30c29
 < SRCS+=	efiboot.c efidev.c efipxe.c efirng.c
+< SRCS+=	conf.c dev_i386.c cmd_i386.c diskprobe.c exec_i386.c machdep.c
 ---
-> SRCS+=	efiboot.cc efidev.c efipxe.c efirng.c
-81a82,84
+> SRCS+=	efiboot.cc
+33,35d31
+< .PATH:	${S}/stand/boot
+< SRCS+=	boot.c bootarg.c cmd.c vars.c
+< 
+37,47c33,35
+< SRCS+=	alloc.c ctime.c exit.c getchar.c hexdump.c \
+< 	memcmp.c memcpy.c memmove.c memset.c printf.c \
+< 	putchar.c snprintf.c strcmp.c strerror.c strlen.c strncmp.c strncpy.c \
+< 	strtol.c strtoll.c
+< SRCS+=	close.c closeall.c cons.c cread.c dev.c disklabel.c dkcksum.c \
+< 	fchmod.c fstat.c lseek.c open.c read.c readdir.c stat.c
+< SRCS+=	ufs.c ufs2.c cd9660.c
+< .if ${SOFTRAID:L} == "yes"
+< SRCS+=	aes_xts.c bcrypt_pbkdf.c blowfish.c explicit_bzero.c hmac_sha1.c \
+< 	pkcs5_pbkdf2.c rijndael.c sha1.c sha2.c softraid.c
+< .endif
+---
+> SRCS+=	alloc.c \
+> 	memcmp.c memcpy.c memmove.c memset.c printf.c cons.c \
+> 	putchar.c snprintf.c strcmp.c strerror.c strlen.c strncmp.c strncpy.c
+49,62d36
+< .PATH:	${S}/lib/libz
+< SRCS+=	adler32.c crc32.c inflate.c inftrees.c
+< 
+< .PATH:	${S}/lib/libkern
+< SRCS+=	ashldi3.c ashrdi3.c divdi3.c lshrdi3.c moddi3.c qdivrem.c
+< SRCS+=	strlcpy.c
+< 
+< .PATH:	${SADIR}/libsa
+< SRCS+=	loadfile.c arc4.c elf64.c elf32.c
+< 
+< .if ${SOFTRAID:L} == "yes"
+< SRCS+=	softraid_amd64.c
+< .endif
+< 
+81a56,58
 > efiboot.o:
 > 	clang++ -O1 -nostdlib -nodefaultlibs -nostartfiles -stdlib=libc++ -nostdinc++ -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -msoft-float -mtune=generic -mno-sse2 -mno-sse -mno-3dnow -mno-mmx -fno-omit-frame-pointer  -Wl,--start-group -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES -DHEAP_LIMIT=${EFI_HEAP_LIMIT} /usr/lib/libc++.a /usr/lib/libc++abi.a /usr/lib/clang/19/lib/libclang_rt.profile.a -Wl,--end-group -isystem /usr/include -D_FLOAT_BITS_=32 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
 > 
