@@ -10,6 +10,8 @@ On some of the known hardwares, they have /usr/libexec/firmwarecheckers/eficheck
 
 This could exclude the firmware infection after using some of the computers nor hardware/firmware supply chain attacks whether the supplier supports they're correct or not.
 
+Either there exists fwupd around linux commands, this could also exclude some of the infection matters.
+
 # Little Tips (2)
 If we write the binary to some storage especially eg. micro-SD then hexdump with some another simplified *TRUSTED* hardwares, we can exclude the main machine thick stacked layers infection by reading them by our eyes.
 
@@ -24,4 +26,9 @@ Talk with gemini concludes we should test lieonn.hh with RP2040 or so the condit
 
 This excludes whole compilation and running and showing the result paranoia into SD card reliability and RP2040 also connected LED output.
 
-However, we got the result tend to behave the host machine and efi boot as same on amd64 this repository implementation, so we should stop doubting them in surface except for our code bug. So bug fix is the next target. However, if there's no bug on our code, so they means the results aren't false positive, so correctly we had a result, another many much of the problem is shown.
+# Little Tips (4)
+strip -s can size down BOOTX64.EFI size into 120Ki octets or better smaller on this implementation.
+
+However, with checking by eyes the binary bit to bit, if the bitrate is the 1 bit per second, we should take around 12 days without rest by only a single person.
+We're doubting this can be done by no error by humans or not, so we should size down more.
+
