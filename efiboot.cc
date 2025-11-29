@@ -31,7 +31,7 @@ struct consdev *cn_tab = constab;
 #define M_ALLOC (32 * 1024 * 1024)
 #define assert (void)
 
-#define _P_PRNG_ 33
+#define _P_PRNG_ 1
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -79,10 +79,10 @@ extern "C" {
     simplealloc_init();
     unsigned long long stack = 0;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      8 * 1024 * 1024 / (4 * 1024), &stack);
+      64 * 1024 * 1024 / (4 * 1024), &stack);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
-    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 8 * 1024 * 1024 - 32) );
+    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 64 * 1024 * 1024 - 64) );
     return EFI_SUCCESS;
   }
 }
@@ -126,10 +126,12 @@ EFI_STATUS calc() {
   char buf[0x200];
   int ctr(0);
   int tctr(0);
-  int mctr(0);
+  int lctr(0);
+  int ltctr(0);
   int length(0);
   int m('r');
   idFeeder<SimpleVector<num_t> > b;
+  SimpleVector<num_t> carry;
   const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi())));
   printf("mem usage temporal efficiency nil: %d, %d\n", bmsqpi.m, bmsqpi.e);
   npoleM = SimpleAllocator<num_t>().allocate(1);
@@ -148,8 +150,7 @@ EFI_STATUS calc() {
       (*pncr_cp)[i].resize(2);
       (*pncr_cp)[i][1].resize(i);
       const int& size(i);
-      const int  step(1);
-      const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
+      const int  step(1); const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
       for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
       printf("%d:", (*pncr_cp)[i][1].size());
     }
@@ -188,8 +189,9 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(1);
-    vbuf[0] = num_t(int(0));
+    SimpleVector<num_t> vbuf(11);
+    vbuf.O();
+    if(carry.size() != vbuf.size()) { carry.resize(vbuf.size() * 2 + 1); carry.O(); }
     int i;
     switch(m) {
     case 'n': {
@@ -216,19 +218,28 @@ EFI_STATUS calc() {
       } else goto lnext;
       break;
     } }
+    for(int j = 1; j < vbuf.size(); j ++) vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
     b.next(vbuf);
    lnext:
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
-        pPRNG1<num_t, 0>(offsetHalf<num_t>(b.res), 10, string("") ));
-      for(int i = 0; i < p.size() - 1; i ++) {
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
+      /* stub */
+      for(int i = 1; i < w2.size(); i ++) {
         tctr ++;
-        const num_t& j(p[i][0]);
+        num_t j(int(0));
+        /* stub */
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
         const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
-        printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
+        const int per10000l(num_t(lctr) / num_t(max(int(ltctr), int(1))) * num_t(int(10000)));
+        printf("%c%d: %d%c%d L %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100, per10000l / 100, '.', per10000l % 100);
       }
+      ltctr ++;
+      num_t j(int(0));
+      /* stub */
+      if(j == num_t(int(0))) ltctr --;
+      else if(num_t(int(0)) < j) lctr ++;
       b.t = 0;
       b.full = 0;
     }
