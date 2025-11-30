@@ -37,56 +37,58 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //      a vast performance increase.
 #if !defined(_SIMPLELIN_)
 
+#define MFENCE() __asm__ __volatile__ ("mfence" : : : "memory")
+
 // --- N.B. start approximate Lie algebra on F_2^k. ---
 // N.B. start ifloat
 // Double int to new int class.
 template <typename T, int bits> class DUInt {
 public:
-  inline DUInt(const int& src = 0) {
+   DUInt(const int& src = 0) {
     const int abssrc(src < 0 ? - src : src);
     e[0]   = T(abssrc);
     e[1]  ^= e[1];
     if(abssrc != src)
       *this = - *this;
   }
-  inline DUInt(const T& src) {
+   DUInt(const T& src) {
     const T abssrc(src < T(int(0)) ? - src : src);
     e[0]   = abssrc;
     e[1]  ^= e[1];
     if(abssrc != src)
       *this = - *this;
   }
-  inline DUInt(const DUInt<T,bits>& src) { *this = src; }
-  inline ~DUInt() { ; }
-  inline DUInt<T,bits>& operator ++ () {
+   DUInt(const DUInt<T,bits>& src) { *this = src; }
+   ~DUInt() { ; }
+   DUInt<T,bits>& operator ++ () {
     ++ e[0];
     if(!e[0]) ++ e[1];
     return *this;
   }
-  inline DUInt<T,bits>  operator ++ (int32_t) {
+   DUInt<T,bits>  operator ++ (int32_t) {
     const DUInt<T,bits> work(*this);
     ++ *this;
     return work;
   }
-  inline DUInt<T,bits>& operator -- () {
+   DUInt<T,bits>& operator -- () {
     if(!e[0]) -- e[1];
     -- e[0];
     return *this;
   }
-  inline DUInt<T,bits>  operator -- (int32_t) {
+   DUInt<T,bits>  operator -- (int32_t) {
     const DUInt<T,bits> work(*this);
     -- *this;
     return work;
   }
-  inline DUInt<T,bits>  operator -  () const {
+   DUInt<T,bits>  operator -  () const {
     DUInt<T,bits> work(~ *this);
     return ++ work;
   }
-  inline DUInt<T,bits>  operator +  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator +  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work += src;
   }
-  inline DUInt<T,bits>& operator += (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator += (const DUInt<T,bits>& src) {
     // N.B. assembler can boost dramatically this code. but not here.
     const T e0(max(e[0], src.e[0]));
     e[0] += src.e[0];
@@ -95,14 +97,14 @@ public:
     e[1] += src.e[1];
     return *this;
   }
-  inline DUInt<T,bits>  operator -  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator -  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work -= src;
   }
-  inline DUInt<T,bits>& operator -= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator -= (const DUInt<T,bits>& src) {
     return *this += - src;
   }
-  inline DUInt<T,bits>  operator *  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator *  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> result;
     result ^= result;
     for(int i = 0; i < 2 * bits; i ++)
@@ -119,14 +121,14 @@ public:
     //     r1 := x1*y1, s1 := ((x1*y1) >> 1) + z2, r2 := s2 & 1, ... and so on.
     return result;
   }
-  inline DUInt<T,bits>& operator *= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator *= (const DUInt<T,bits>& src) {
     return *this = *this * src;
   }
-  inline DUInt<T,bits>  operator /  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator /  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work /= src;
   }
-  inline DUInt<T,bits>& operator /= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator /= (const DUInt<T,bits>& src) {
     const DUInt<T,bits> one(int(1));
     if(! src) return *this;
     if(! *this)
@@ -141,17 +143,17 @@ public:
     return *this;
     // N.B. if we works with newton's method, better speed will be gained.
   }
-  inline DUInt<T,bits>  operator %  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator %  (const DUInt<T,bits>& src) const {
     return *this - ((*this / src) * src);
   }
-  inline DUInt<T,bits>& operator %= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator %= (const DUInt<T,bits>& src) {
     return *this = *this % src;
   }
-  inline DUInt<T,bits>  operator << ( const int& b)            const {
+   DUInt<T,bits>  operator << ( const int& b)            const {
     DUInt<T,bits> work(*this);
     return work <<= b;
   }
-  inline DUInt<T,bits>& operator <<= (const int& b) {
+   DUInt<T,bits>& operator <<= (const int& b) {
     if(! b)                return *this;
     else if(b < 0)         return *this >>= (- b);
     else if(b >= bits * 2) return *this ^= *this;
@@ -168,11 +170,11 @@ public:
     }
     return *this;
   }
-  inline DUInt<T,bits>  operator >> ( const int& b)            const {
+   DUInt<T,bits>  operator >> ( const int& b)            const {
     DUInt<T,bits> work(*this);
     return work >>= b;
   }
-  inline DUInt<T,bits>& operator >>= (const int& b) {
+   DUInt<T,bits>& operator >>= (const int& b) {
     if(! b)                return *this;
     else if(b < 0)         return *this <<= (- b);
     else if(b >= bits * 2) return *this ^= *this;
@@ -189,81 +191,81 @@ public:
     }
     return *this;
   }
-  inline DUInt<T,bits>  operator &  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator &  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work &= src;
   }
-  inline DUInt<T,bits>& operator &= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator &= (const DUInt<T,bits>& src) {
     e[0] &= src.e[0]; e[1] &= src.e[1];
     return *this;
   }
-  inline DUInt<T,bits>  operator |  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator |  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work |= src;
   }
-  inline DUInt<T,bits>& operator |= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator |= (const DUInt<T,bits>& src) {
     e[0] |= src.e[0]; e[1] |= src.e[1];
     return *this;
   }
-  inline DUInt<T,bits>  operator ^  (const DUInt<T,bits>& src) const {
+   DUInt<T,bits>  operator ^  (const DUInt<T,bits>& src) const {
     DUInt<T,bits> work(*this);
     return work ^= src;
   }
-  inline DUInt<T,bits>& operator ^= (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator ^= (const DUInt<T,bits>& src) {
     e[0] ^= src.e[0]; e[1] ^= src.e[1];
     return *this;
   }
-  inline DUInt<T,bits>  operator ~  ()                         const {
+   DUInt<T,bits>  operator ~  ()                         const {
     DUInt<T,bits> work;
     work.e[0] = ~ e[0]; work.e[1] = ~ e[1];
     return work;
   }
-  inline DUInt<T,bits>& operator =  (const DUInt<T,bits>& src) {
+   DUInt<T,bits>& operator =  (const DUInt<T,bits>& src) {
     e[0] = src.e[0]; e[1] = src.e[1];
     return *this;
   }
-  inline DUInt<T,bits>& operator =  (const DUInt<DUInt<T,bits>,bits*2>& src) {
+   DUInt<T,bits>& operator =  (const DUInt<DUInt<T,bits>,bits*2>& src) {
     return *this = src.e[0];
   }
-  inline DUInt<T,bits>& operator =  (DUInt<T,bits>&& src) {
+   DUInt<T,bits>& operator =  (DUInt<T,bits>&& src) {
     e[0] = move(src.e[0]); e[1] = move(src.e[1]);
     return *this;
   }
-  inline bool           operator <  (const DUInt<T,bits>& src) const {
+   bool           operator <  (const DUInt<T,bits>& src) const {
     if(e[1]) return e[1] != src.e[1] ? e[1] < src.e[1] : e[0] < src.e[0];
     return bool(src.e[1]) || e[0] < src.e[0];
   }
-  inline bool           operator <= (const DUInt<T,bits>& src) const {
+   bool           operator <= (const DUInt<T,bits>& src) const {
     return *this < src || *this == src;
   }
-  inline bool           operator >  (const DUInt<T,bits>& src) const {
+   bool           operator >  (const DUInt<T,bits>& src) const {
     return ! (*this <= src);
   }
-  inline bool           operator >= (const DUInt<T,bits>& src) const {
+   bool           operator >= (const DUInt<T,bits>& src) const {
     return ! (*this < src);
   }
-  inline bool           operator == (const DUInt<T,bits>& src) const {
+   bool           operator == (const DUInt<T,bits>& src) const {
     return ! (*this != src);
   }
-  inline bool           operator != (const DUInt<T,bits>& src) const {
+   bool           operator != (const DUInt<T,bits>& src) const {
     return (*this ^ src).operator bool();
   }
-  inline bool           operator && (const DUInt<T,bits>& src) const {
+   bool           operator && (const DUInt<T,bits>& src) const {
     return this->operator bool() && src.operator bool();
   }
-  inline bool           operator || (const DUInt<T,bits>& src) const {
+   bool           operator || (const DUInt<T,bits>& src) const {
     return this->operator bool() || src.operator bool();
   }
-  inline bool           operator !    () const {
+   bool           operator !    () const {
     return ! this->operator bool();
   }
-  inline                operator bool () const {
+                  operator bool () const {
     return e[0] || e[1];
   }
-  inline                operator int  () const {
+                  operator int  () const {
     return int(e[0]);
   }
-  inline                operator T    () const {
+                  operator T    () const {
     return e[0];
   }
   T e[2];
@@ -272,21 +274,21 @@ public:
 // add sign.
 template <typename T, int bits> class Signed : public T {
 public:
-  inline Signed() { ; }
-  inline Signed(const int& src) {
+   Signed() { ; }
+   Signed(const int& src) {
     T tsrc(src);
     *this = reinterpret_cast<const Signed<T,bits>&>(tsrc);
   }
-  inline Signed(const T& src) {
+   Signed(const T& src) {
     *this = reinterpret_cast<const Signed<T,bits>&>(src);
   }
-  inline Signed(const Signed<T,bits>& src) {
+   Signed(const Signed<T,bits>& src) {
     *this = src;
   }
-  inline bool operator != (const Signed<T,bits>& src) const {
+   bool operator != (const Signed<T,bits>& src) const {
     return dynamic_cast<const T&>(*this) != dynamic_cast<const T&>(src);
   }
-  inline bool operator <  (const Signed<T,bits>& src) const {
+   bool operator <  (const Signed<T,bits>& src) const {
     const int mthis(int(*this >> (bits - 1)));
     const int msrc( int(src   >> (bits - 1)));
     if(mthis ^ msrc) return mthis;
@@ -294,16 +296,16 @@ public:
       return - dynamic_cast<const T&>(src) < - dynamic_cast<const T&>(*this);
     return dynamic_cast<const T&>(*this) < dynamic_cast<const T&>(src);
   }
-  inline bool operator <= (const Signed<T,bits>& src) const {
+   bool operator <= (const Signed<T,bits>& src) const {
     return ! (*this > src);
   }
-  inline bool operator >  (const Signed<T,bits>& src) const {
+   bool operator >  (const Signed<T,bits>& src) const {
     return ! (*this < src) && *this != src;
   }
-  inline bool operator >= (const Signed<T,bits>& src) const {
+   bool operator >= (const Signed<T,bits>& src) const {
     return ! (*this < src);
   }
-  inline      operator double () const {
+        operator double () const {
     if(*this < Signed<T,bits>(T(int(0))) ) {
       Signed<T,bits> mthis(- *this);
       T work(dynamic_cast<const T&>(mthis));
@@ -316,10 +318,10 @@ public:
 // integer to integer float part.
 template <typename T, typename W, int bits, typename U> class SimpleFloat {
 public:
-  inline SimpleFloat() {
+   SimpleFloat() {
     s |= (1 << NaN) | (1 << INF);
   }
-  template <typename V> inline SimpleFloat(const V& src) {
+  template <typename V>  SimpleFloat(const V& src) {
     const V vzero(int(0));
     s ^= s;
     m  = T(int(src < vzero ? - src : src));
@@ -329,15 +331,15 @@ public:
       s |= 1 << SIGN;
     ensureFlag();
   }
-  inline SimpleFloat(const SimpleFloat<T,W,bits,U>& src) { *this = src; }
-  inline SimpleFloat(SimpleFloat<T,W,bits,U>&& src) { *this = src; }
-  inline ~SimpleFloat() { ; }
-  inline SimpleFloat<T,W,bits,U>  operator -  () const {
+   SimpleFloat(const SimpleFloat<T,W,bits,U>& src) { *this = src; }
+   SimpleFloat(SimpleFloat<T,W,bits,U>&& src) { *this = src; }
+   ~SimpleFloat() { ; }
+   SimpleFloat<T,W,bits,U>  operator -  () const {
     SimpleFloat<T,W,bits,U> work(*this);
     work.s ^= 1 << SIGN;
     return work;
   }
-  inline SimpleFloat<T,W,bits,U>  operator +  (const SimpleFloat<T,W,bits,U>& src) const {
+   SimpleFloat<T,W,bits,U>  operator +  (const SimpleFloat<T,W,bits,U>& src) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work += src;
   }
@@ -350,6 +352,7 @@ public:
     if(src.s & (1 << INF)) return *this = src;
     if(! m) return *this = src;
     if(! src.m) return *this;
+    MFENCE();
     if(! ((s ^ src.s) & (1 << SIGN))) {
       if(e >= src.e) {
         m >>= 1;
@@ -375,17 +378,17 @@ public:
     s |= safeAdd(e, normalize(m));
     return ensureFlag();
   }
-  inline SimpleFloat<T,W,bits,U>  operator -  (const SimpleFloat<T,W,bits,U>& src) const {
+   SimpleFloat<T,W,bits,U>  operator -  (const SimpleFloat<T,W,bits,U>& src) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work -= src;
   }
-  inline SimpleFloat<T,W,bits,U>& operator -= (const SimpleFloat<T,W,bits,U>& src) {
+   SimpleFloat<T,W,bits,U>& operator -= (const SimpleFloat<T,W,bits,U>& src) {
     s ^= 1 << SIGN;
     *this += src;
     s ^= 1 << SIGN;
     return *this;
   }
-  inline SimpleFloat<T,W,bits,U>  operator *  (const SimpleFloat<T,W,bits,U>& src) const {
+   SimpleFloat<T,W,bits,U>  operator *  (const SimpleFloat<T,W,bits,U>& src) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work *= src;
   }
@@ -397,6 +400,7 @@ public:
       return ensureFlag();
     }
     if((s |= src.s & (1 << INF)) & (1 << INF)) return *this;
+    MFENCE();
     W mm(W(m) * W(src.m));
     s |= safeAdd(e, src.e);
     s |= safeAdd(e, normalize(mm));
@@ -404,7 +408,7 @@ public:
     m  = T(mm >> bits);
     return ensureFlag();
   }
-  inline SimpleFloat<T,W,bits,U>  operator /  (const SimpleFloat<T,W,bits,U>& src) const {
+   SimpleFloat<T,W,bits,U>  operator /  (const SimpleFloat<T,W,bits,U>& src) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work /= src;
   }
@@ -424,57 +428,60 @@ public:
       return *this;
     }
     if(! m) return *this;
+    MFENCE();
     W mm((W(m) << bits) / W(src.m));
     s |= safeAdd(e, - src.e);
     s |= safeAdd(e, normalize(mm));
     m  = T(mm >> bits);
     return ensureFlag();
   }
-  inline SimpleFloat<T,W,bits,U>  operator %  (const SimpleFloat<T,W,bits,U>& src) const {
+   SimpleFloat<T,W,bits,U>  operator %  (const SimpleFloat<T,W,bits,U>& src) const {
     return *this - (*this / src).absfloor() * src;
   }
-  inline SimpleFloat<T,W,bits,U>& operator %= (const SimpleFloat<T,W,bits,U>& src) {
+   SimpleFloat<T,W,bits,U>& operator %= (const SimpleFloat<T,W,bits,U>& src) {
     return *this = *this % src;
   }
-  inline SimpleFloat<T,W,bits,U>  operator <<  (const U& b) const {
+   SimpleFloat<T,W,bits,U>  operator <<  (const U& b) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work <<= b;
   }
-  inline SimpleFloat<T,W,bits,U>& operator <<= (const U& b) {
+   SimpleFloat<T,W,bits,U>& operator <<= (const U& b) {
     if(s & ((1 << INF) | (1 << NaN))) return *this;
     s |= safeAdd(e, b);
     return ensureFlag();
   }
-  inline SimpleFloat<T,W,bits,U>  operator >>  (const U& b) const {
+   SimpleFloat<T,W,bits,U>  operator >>  (const U& b) const {
     SimpleFloat<T,W,bits,U> work(*this);
     return work >>= b;
   }
-  inline SimpleFloat<T,W,bits,U>& operator >>= (const U& b) {
+   SimpleFloat<T,W,bits,U>& operator >>= (const U& b) {
     if(s & ((1 << INF) | (1 << NaN))) return *this;
     s |= safeAdd(e, - b);
     return ensureFlag();
   }
-  inline SimpleFloat<T,W,bits,U>& operator =  (const SimpleFloat<T,W,bits,U>& src) {
+   SimpleFloat<T,W,bits,U>& operator =  (const SimpleFloat<T,W,bits,U>& src) {
     s = src.s;
     e = src.e;
     m = src.m;
+    MFENCE();
     return *this;
   }
-  inline SimpleFloat<T,W,bits,U>& operator =  (SimpleFloat<T,W,bits,U>&& src) {
+   SimpleFloat<T,W,bits,U>& operator =  (SimpleFloat<T,W,bits,U>&& src) {
     s = move(src.s);
     e = move(src.e);
     m = move(src.m);
+    MFENCE();
     return *this;
   }
-  inline bool             operator == (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator == (const SimpleFloat<T,W,bits,U>& src) const {
     return ! (*this != src);
   }
-  inline bool             operator != (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator != (const SimpleFloat<T,W,bits,U>& src) const {
     return (((s | src.s) & ((1 << INF) | (1 << NaN))) ||
              (s != src.s || e != src.e || m != src.m)) &&
            ! (! m && ! src.m);
   }
-  inline bool             operator <  (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator <  (const SimpleFloat<T,W,bits,U>& src) const {
     if((s | src.s) & (1 << NaN)) return false;
     const unsigned char s_is_minus(s & (1 << SIGN));
     if(s_is_minus ^ (src.s & (1 << SIGN))) return s_is_minus;
@@ -490,25 +497,25 @@ public:
     }
     return !m ? (! src.m ? m != src.m : ! (src.s & (1 << SIGN))) : s_is_minus;
   }
-  inline bool             operator <= (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator <= (const SimpleFloat<T,W,bits,U>& src) const {
     return *this < src || *this == src;
   }
-  inline bool             operator >  (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator >  (const SimpleFloat<T,W,bits,U>& src) const {
     return ! (*this <= src);
   }
-  inline bool             operator >= (const SimpleFloat<T,W,bits,U>& src) const {
+   bool             operator >= (const SimpleFloat<T,W,bits,U>& src) const {
     return ! (*this < src);
   }
-  inline bool             operator !  () const {
+   bool             operator !  () const {
     return ! m && isfinite(*this);
   }
-  inline                  operator bool () const {
+                    operator bool () const {
     return ! (!*this);
   }
-  inline                  operator int  () const {
+                    operator int  () const {
     return int(this->operator T());
   }
-  inline                  operator T    () const {
+                    operator T    () const {
     SimpleFloat<T,W,bits,U> deci(*this);
     if(deci.s & (1 << INF)) return T(int(0));
     if(deci.s & (1 << NaN)) return T(int(0));
@@ -520,7 +527,7 @@ public:
     else if(uzero() < deci.e) deci.m <<=   int(deci.e);
     return s & (1 << SIGN) ? - deci.m : deci.m;
   }
-  inline SimpleFloat<T,W,bits,U>  absfloor() const {
+   SimpleFloat<T,W,bits,U>  absfloor() const {
     if(uzero() <= e) return *this;
     if(e <= - U(bits)) return zero();
     SimpleFloat<T,W,bits,U> deci(*this);
@@ -528,7 +535,7 @@ public:
     deci.m <<= - int(deci.e);
     return deci;
   }
-  inline SimpleFloat<T,W,bits,U>  absceil() const {
+   SimpleFloat<T,W,bits,U>  absceil() const {
     const SimpleFloat<T,W,bits,U> fl(this->absfloor());
     if(*this - fl) {
       SimpleFloat<T,W,bits,U> pmone(one());
@@ -537,7 +544,7 @@ public:
     }
     return fl;
   }
-  inline SimpleFloat<T,W,bits,U>  abs()  const {
+   SimpleFloat<T,W,bits,U>  abs()  const {
     SimpleFloat<T,W,bits,U> work(*this);
     work.s &= ~ (1 << SIGN);
     return work;
@@ -547,7 +554,7 @@ public:
          SimpleFloat<T,W,bits,U>  sin()  const;
          SimpleFloat<T,W,bits,U>  cos()  const;
          SimpleFloat<T,W,bits,U>  atan() const;
-  inline SimpleFloat<T,W,bits,U>  sqrt() const;
+   SimpleFloat<T,W,bits,U>  sqrt() const;
   
   uint64_t s;
   typedef enum {
@@ -584,7 +591,8 @@ public:
     return SimpleFloat<T,W,bits,U>((one() << U(1)).sqrt());
   }
 private:
-  template <typename V> inline U normalize(V& src) const {
+  template <typename V>  U normalize(V& src) const {
+    MFENCE();
     V   bt(int(0));
     bt = ~ bt;
     int doff(sizeof(V) * 4);
@@ -596,9 +604,11 @@ private:
     }
     const U shift(sizeof(V) * 8 - b - 1);
     if(shift) src <<= shift;
+    MFENCE();
     return - U(shift);
   }
-  inline SimpleFloat<T,W,bits,U>& ensureFlag() {
+   SimpleFloat<T,W,bits,U>& ensureFlag() {
+    MFENCE();
     if(s & (1 << INF))
       s &= ~ (1 << DWRK);
     else if(! m || (s & (1 << DWRK))) {
@@ -606,17 +616,20 @@ private:
       m ^= m;
       s &= ~ ((1 << DWRK) | (1 << INF));
     }
+    MFENCE();
     return * this;
   }
-  inline uint64_t safeAdd(U& dst, const U& src) {
+   uint64_t safeAdd(U& dst, const U& src) {
+    MFENCE();
     const U dst0(dst);
     dst += src;
+    MFENCE();
     if((dst0 > uzero() && src > uzero() && dst <= uzero()) ||
        (dst0 < uzero() && src < uzero() && dst >= uzero()))
       return 1 << (dst0 < uzero() ? DWRK : INF);
     return 0;
   }
-  inline int64_t residue2() const {
+   int64_t residue2() const {
     if(uzero() < e || U(bits) <= - e) return 0;
     if(! e) return int64_t(int(m) & 1);
     return int64_t(int(m >> - int(e)) & 1);
@@ -659,6 +672,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
       const SimpleFloat<T,W,bits,U> abst(x / SimpleFloat<T,W,bits,U>(t));
       before = res;
       res   += (t % 2 ? abst : - abst);
+      MFENCE();
     }
     return res;
   }
@@ -706,6 +720,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
       before = res;
       denom *= SimpleFloat<T,W,bits,U>(t);
       res   += x / denom;
+      MFENCE();
     }
     return res;
   }
@@ -743,6 +758,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
       before = res;
       denom *= - tt * (tt + one());
       res   += x / denom;
+      MFENCE();
     }
     return res;
   }
@@ -776,6 +792,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
       before = res;
       denom *= - tt * (tt - one());
       res   += x / denom;
+      MFENCE();
     }
     return res;
   }
@@ -813,6 +830,7 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
       const SimpleFloat<T,W,bits,U> abst(x / ((SimpleFloat<T,W,bits,U>(t) << U(1)) + one()));
       before = res;
       res   += (t % 2 ? - abst : abst);
+      MFENCE();
     }
     return res;
   }
@@ -890,7 +908,7 @@ template <typename T, typename W, int bits, typename U> const vector<SimpleFloat
   return iebuf;
 }
 
-template <typename T, typename W, int bits, typename U> inline SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::sqrt() const {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> SimpleFloat<T,W,bits,U>::sqrt() const {
   if(s & ((1 << INF) | (1 << NaN))) {
     SimpleFloat<T,W,bits,U> res(*this);
     if(s & (1 << SIGN)) res.s |= 1 << NaN;
@@ -907,59 +925,60 @@ template <typename T, typename W, int bits, typename U> inline SimpleFloat<T,W,b
 }
 
 // N.B. only to enname, better languages can omit these.
-template <typename T, typename W, int bits, typename U> static inline bool isinf(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  bool isinf(const SimpleFloat<T,W,bits,U>& src) {
   return src.s & (1 << src.INF);
 }
 
-template <typename T, typename W, int bits, typename U> static inline bool isnan(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  bool isnan(const SimpleFloat<T,W,bits,U>& src) {
   return src.s & (1 << src.NaN);
 }
 
-template <typename T, typename W, int bits, typename U> static inline bool isfinite(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  bool isfinite(const SimpleFloat<T,W,bits,U>& src) {
   return ! (src.s & ((1 << src.INF) | (1 << src.NaN)));
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> absfloor(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> absfloor(const SimpleFloat<T,W,bits,U>& src) {
   return src.absfloor();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> absceil(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> absceil(const SimpleFloat<T,W,bits,U>& src) {
   return src.absceil();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> abs(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> abs(const SimpleFloat<T,W,bits,U>& src) {
   return src.abs();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> sqrt(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> sqrt(const SimpleFloat<T,W,bits,U>& src) {
   return src.sqrt();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> exp(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> exp(const SimpleFloat<T,W,bits,U>& src) {
   return src.exp();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> log(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> log(const SimpleFloat<T,W,bits,U>& src) {
   return src.log();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> sin(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> sin(const SimpleFloat<T,W,bits,U>& src) {
   return src.sin();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> cos(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> cos(const SimpleFloat<T,W,bits,U>& src) {
   return src.cos();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> tan(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> tan(const SimpleFloat<T,W,bits,U>& src) {
   return src.sin() / src.cos();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> atan(const SimpleFloat<T,W,bits,U>& src) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> atan(const SimpleFloat<T,W,bits,U>& src) {
   return src.atan();
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> atan2(const SimpleFloat<T,W,bits,U>& y, const SimpleFloat<T,W,bits,U>& x) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> atan2(const SimpleFloat<T,W,bits,U>& y, const SimpleFloat<T,W,bits,U>& x) {
+      MFENCE();
   SimpleFloat<T,W,bits,U> atan0(y.halfpi());
   if(! x && ! y)
     return x / y;
@@ -989,10 +1008,11 @@ template <typename T, typename W, int bits, typename U> static inline SimpleFloa
       atan0 = - atan0;
   } else if(x.s & (1 << x.SIGN))
     atan0  = x.pi() - atan0;
+      MFENCE();
   return atan0;
 }
 
-template <typename T, typename W, int bits, typename U> static inline SimpleFloat<T,W,bits,U> pow(const SimpleFloat<T,W,bits,U>& src, const SimpleFloat<T,W,bits,U>& dst) {
+template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> pow(const SimpleFloat<T,W,bits,U>& src, const SimpleFloat<T,W,bits,U>& dst) {
   if(! dst) {
     if(! src)
       return T(int(0)) / T(int(0));
@@ -1004,221 +1024,221 @@ template <typename T, typename W, int bits, typename U> static inline SimpleFloa
 // N.B. start class complex part:
 template <typename T> class Complex {
 public:
-  inline Complex() { ; }
-  inline Complex(const T& real, const T& imag = T(int(0))) {
+   Complex() { ; }
+   Complex(const T& real, const T& imag = T(int(0))) {
     _real = real; _imag = imag;
   }
-  inline Complex(const Complex<T>& s) { *this = s; }
-  inline Complex(Complex<T>&& s) { *this = s; }
-  inline Complex(T&& real) {
+   Complex(const Complex<T>& s) { *this = s; }
+   Complex(Complex<T>&& s) { *this = s; }
+   Complex(T&& real) {
     const T zero(0);
     _real = move(real);
     _imag = zero;
   }
-  inline Complex(T&& real, T&& imag) {
+   Complex(T&& real, T&& imag) {
     _real = move(real);
     _imag = move(imag);
   }
-  inline ~Complex() { ; }
-  inline Complex<T>  operator ~  ()                    const {
+   ~Complex() { ; }
+   Complex<T>  operator ~  ()                    const {
     return Complex<T>(  _real, - _imag);
   }
-  inline Complex<T>  operator -  ()                    const {
+   Complex<T>  operator -  ()                    const {
     return Complex<T>(- _real, - _imag);
   }
-  inline Complex<T>  operator +  (const Complex<T>& s) const {
+   Complex<T>  operator +  (const Complex<T>& s) const {
     Complex<T> result(*this);
     return result += s;
   }
-  inline Complex<T>& operator += (const Complex<T>& s) {
+   Complex<T>& operator += (const Complex<T>& s) {
     _real += s._real;
     _imag += s._imag;
     return *this;
   }
-  inline Complex<T>  operator -  (const Complex<T>& s) const {
+   Complex<T>  operator -  (const Complex<T>& s) const {
     Complex<T> result(*this);
     return result -= s;
   }
-  inline Complex<T>& operator -= (const Complex<T>& s) {
+   Complex<T>& operator -= (const Complex<T>& s) {
     _real -= s._real;
     _imag -= s._imag;
     return *this;
   }
-  inline Complex<T>  operator *  (const T& s)          const {
+   Complex<T>  operator *  (const T& s)          const {
     Complex<T> result(*this);
     return result *= s;
   }
-  inline Complex<T>& operator *= (const T& s) {
+   Complex<T>& operator *= (const T& s) {
     _real *= s;
     _imag *= s;
     return *this;
   }
-  inline Complex<T>  operator *  (const Complex<T>& s) const {
+   Complex<T>  operator *  (const Complex<T>& s) const {
     return Complex<T>(_real * s._real - _imag * s._imag,
                       _real * s._imag + _imag * s._real);
   }
-  inline Complex<T>& operator *= (const Complex<T>& s) {
+   Complex<T>& operator *= (const Complex<T>& s) {
     return (*this) = (*this) * s;
   }
-  inline Complex<T>  operator /  (const T& s)          const {
+   Complex<T>  operator /  (const T& s)          const {
     Complex<T> result(*this);
     return result /= s;
   }
-  inline Complex<T>& operator /= (const T& s) {
+   Complex<T>& operator /= (const T& s) {
     _real /= s;
     _imag /= s;
     return *this;
   }
-  inline Complex<T>  operator /  (const Complex<T>& s) const {
+   Complex<T>  operator /  (const Complex<T>& s) const {
     return (*this * (~ s)) / (s._real * s._real + s._imag * s._imag);
   }
-  inline Complex<T>& operator /= (const Complex<T>& s) {
+   Complex<T>& operator /= (const Complex<T>& s) {
     return *this = *this / s;
   }
-  inline bool        operator == (const Complex<T>& s) const {
+   bool        operator == (const Complex<T>& s) const {
     return !(*this != s);
   }
-  inline bool        operator != (const Complex<T>& s) const {
+   bool        operator != (const Complex<T>& s) const {
     return (_real != s._real) || (_imag != s._imag);
   }
-  inline bool        operator !  ()                    const {
+   bool        operator !  ()                    const {
     return !_real && !_imag;
   }
-  inline Complex<T>  operator &  (const Complex<T>& s) const {
+   Complex<T>  operator &  (const Complex<T>& s) const {
     Complex<T> result(*this);
     return result &= s;
   }
-  inline Complex<T>& operator &= (const Complex<T>& s) {
+   Complex<T>& operator &= (const Complex<T>& s) {
     _real &= s._real;
     _imag &= s._imag;
     return *this;
   }
-  inline Complex<T>  operator |  (const Complex<T>& s) const {
+   Complex<T>  operator |  (const Complex<T>& s) const {
     Complex<T> result(*this);
     return result |= s;
   }
-  inline Complex<T>& operator |= (const Complex<T>& s) {
+   Complex<T>& operator |= (const Complex<T>& s) {
     _real |= s._real;
     _imag |= s._imag;
     return *this;
   }
-  inline Complex<T>  operator ^  (const Complex<T>& s) const {
+   Complex<T>  operator ^  (const Complex<T>& s) const {
     Complex<T> result(*this);
     return result ^= s;
   }
-  inline Complex<T>& operator ^= (const Complex<T>& s) {
+   Complex<T>& operator ^= (const Complex<T>& s) {
     _real ^= s._real;
     _imag ^= s._imag;
     return *this;
   }
-  inline bool        operator && (const Complex<T>& s) const {
+   bool        operator && (const Complex<T>& s) const {
     return *this && s;
   }
-  inline bool        operator || (const Complex<T>& s) const {
+   bool        operator || (const Complex<T>& s) const {
     return *this || s;
   }
-  inline Complex<T>& operator =  (const Complex<T>& s) {
+   Complex<T>& operator =  (const Complex<T>& s) {
     _real = s._real;
     _imag = s._imag;
     return *this;
   }
-  inline Complex<T>& operator =  (Complex<T>&& s) {
+   Complex<T>& operator =  (Complex<T>&& s) {
     _real = move(s._real);
     _imag = move(s._imag);
     return *this;
   }
-  inline T&          operator [] (const size_t& i) {
+   T&          operator [] (const size_t& i) {
     if(i) return _imag;
     return _real;
   }
-  inline             operator bool () const {
+               operator bool () const {
     return ! (! *this);
   }
-  inline             operator T    () const {
+               operator T    () const {
     return this->_real;
   }
   const Complex<T> i() const {
     return Complex<T>(Complex<T>(T(int(0)), T(int(1))));
   }
-  inline T  abs() const {
+   T  abs() const {
     return sqrt(_real * _real + _imag * _imag);
   }
-  inline T  arg() const {
+   T  arg() const {
     return atan2(_imag, _real);
   }
-  inline T& real() {
+   T& real() {
     return _real;
   }
-  inline T& imag() {
+   T& imag() {
     return _imag;
   }
-  inline const T& real() const {
+   const T& real() const {
     return _real;
   }
-  inline const T& imag() const {
+   const T& imag() const {
     return _imag;
   }
   T _real;
   T _imag;
 };
 
-template <typename T> static inline T abs(const Complex<T>& s) {
+template <typename T>  T abs(const Complex<T>& s) {
   return s.abs();
 }
 
-template <typename T> static inline T arg(const Complex<T>& s) {
+template <typename T>  T arg(const Complex<T>& s) {
   return s.arg();
 }
 
-template <typename T> static inline const T& real(const Complex<T>& s) {
+template <typename T>  const T& real(const Complex<T>& s) {
   return s.real();
 }
 
-template <typename T> static inline const T& imag(const Complex<T>& s) {
+template <typename T>  const T& imag(const Complex<T>& s) {
   return s.imag();
 }
 
-template <typename T> static inline Complex<T> exp(const Complex<T>& s) {
+template <typename T>  Complex<T> exp(const Complex<T>& s) {
   return Complex<T>(exp(s.real())) * Complex<T>(cos(s.imag()), sin(s.imag()));
 }
 
-template <typename T> static inline Complex<T> log(const Complex<T>& s) {
+template <typename T>  Complex<T> log(const Complex<T>& s) {
   // N.B. main branch
   return Complex<T>(log(abs(s)), arg(s));
 }
 
-template <typename T> static inline Complex<T> pow(const Complex<T>& s, const Complex<T>& p) {
+template <typename T>  Complex<T> pow(const Complex<T>& s, const Complex<T>& p) {
   if(abs(s) == T(int(0))) {
     return T(int(0));
   }
   return exp(log(s) * p);
 }
 
-template <typename T> static inline Complex<T> sqrt(const Complex<T>& s) {
+template <typename T>  Complex<T> sqrt(const Complex<T>& s) {
   return exp(log(s) * Complex<T>(T(int(1)) / T(int(2))));
 }
 
-template <typename T> static inline Complex<T> csin(const Complex<T>& s) {
+template <typename T>  Complex<T> csin(const Complex<T>& s) {
   return (exp(Complex<T>(T(int(0)), s)) - exp(Complex<T>(T(int(0)), - s))) / Complex<T>(T(int(0)), T(int(2)));
 }
 
-template <typename T> static inline Complex<T> ccos(const Complex<T>& s) {
+template <typename T>  Complex<T> ccos(const Complex<T>& s) {
   return (exp(Complex<T>(T(int(0)), s)) + exp(Complex<T>(T(int(0)), - s))) / T(int(2));
 }
 
-template <typename T> static inline Complex<T> ctan(const Complex<T>& s) {
+template <typename T>  Complex<T> ctan(const Complex<T>& s) {
   return csin(s) / ccos(s);
 }
 
-template <typename T> static inline Complex<T> ccsc(const Complex<T>& s) {
+template <typename T>  Complex<T> ccsc(const Complex<T>& s) {
   return Complex<T>(T(int(1))) / csin(s);
 }
 
-template <typename T> static inline Complex<T> csec(const Complex<T>& s) {
+template <typename T>  Complex<T> csec(const Complex<T>& s) {
   return Complex<T>(T(int(1))) / ccos(s);
 }
 
-template <typename T> static inline T ccot(const T& s) {
+template <typename T>  T ccot(const T& s) {
   return Complex<T>(T(int(1))) / ctan(s);
 }
 
@@ -1246,10 +1266,10 @@ public:
   typedef T* pointer;
   typedef const T* const_pointer;
   typedef T value_type;
-  inline SimpleAllocator() { }
-  template <typename U> inline SimpleAllocator(const SimpleAllocator<U>&) { }
-  inline ~SimpleAllocator() { }
-  inline T* allocate(size_t n) {
+   SimpleAllocator() { }
+  template <typename U>  SimpleAllocator(const SimpleAllocator<U>&) { }
+   ~SimpleAllocator() { }
+   T* allocate(size_t n) {
     n *= sizeof(T);
     n  = (n + _SIMPLEALLOC_ - 1) / _SIMPLEALLOC_ * _SIMPLEALLOC_;
     if(M_ALLOC <= lastptr) { printf("pool full.\n"); for(;;) ; }
@@ -1259,7 +1279,7 @@ public:
     if(! (last < sam_upper)) { printf("memory full.\n"); for(;;) ;}
     return reinterpret_cast<T*>(last - n);
   }
-  inline void deallocate(T* p, size_t n) {
+   void deallocate(T* p, size_t n) {
     size_t pp(reinterpret_cast<size_t>(p));
     size_t work(last);
     bool   flag(false);
@@ -1275,20 +1295,20 @@ public:
       lastptr = i;
     }
   }
-  inline void destroy(T* p) { p->~T(); }
+   void destroy(T* p) { p->~T(); }
 };
 #endif
 
 template <typename T> class SimpleVector {
 public:
-  inline SimpleVector() { ; }
-  inline SimpleVector(const int& size) {
+   SimpleVector() { ; }
+   SimpleVector(const int& size) {
     this->entity.resize(size);
   }
-  inline SimpleVector(const SimpleVector<T>& other) { *this = other; }
-  inline SimpleVector(SimpleVector<T>&& other) { *this = other; }
-  inline ~SimpleVector() { ; }
-  inline       SimpleVector<T>  operator -  () const {
+   SimpleVector(const SimpleVector<T>& other) { *this = other; }
+   SimpleVector(SimpleVector<T>&& other) { *this = other; }
+   ~SimpleVector() { ; }
+         SimpleVector<T>  operator -  () const {
     SimpleVector<T> res(entity.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1297,11 +1317,11 @@ public:
       res.entity[i] = - entity[i];
     return res;
   }
-  inline       SimpleVector<T>  operator +  (const SimpleVector<T>& other) const {
+         SimpleVector<T>  operator +  (const SimpleVector<T>& other) const {
     SimpleVector<T> res(*this);
     return res += other;
   }
-  inline       SimpleVector<T>& operator += (const SimpleVector<T>& other) {
+         SimpleVector<T>& operator += (const SimpleVector<T>& other) {
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -1309,18 +1329,18 @@ public:
       entity[i] += other.entity[i];
     return *this;
   }
-  inline       SimpleVector<T>  operator -  (const SimpleVector<T>& other) const {
+         SimpleVector<T>  operator -  (const SimpleVector<T>& other) const {
     SimpleVector<T> res(*this);
     return res -= other;
   }
-  inline       SimpleVector<T>& operator -= (const SimpleVector<T>& other) {
+         SimpleVector<T>& operator -= (const SimpleVector<T>& other) {
     return *this += - other;
   }
-  inline       SimpleVector<T>  operator *  (const T& other) const {
+         SimpleVector<T>  operator *  (const T& other) const {
     SimpleVector<T> res(*this);
     return res *= other;
   }
-  inline       SimpleVector<T>& operator *= (const T& other) {
+         SimpleVector<T>& operator *= (const T& other) {
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -1328,11 +1348,11 @@ public:
       entity[i] *= other;
     return *this;
   }
-  inline       SimpleVector<T>  operator /  (const T& other) const {
+         SimpleVector<T>  operator /  (const T& other) const {
     SimpleVector<T> res(*this);
     return res /= other;
   }
-  inline       SimpleVector<T>& operator /= (const T& other) {
+         SimpleVector<T>& operator /= (const T& other) {
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -1340,24 +1360,24 @@ public:
       entity[i] /= other;
     return *this;
   }
-  inline       SimpleVector<T>& operator =  (const SimpleVector<T>& other) {
+         SimpleVector<T>& operator =  (const SimpleVector<T>& other) {
     entity = other.entity;
     return *this;
   }
-  inline       SimpleVector<T>& operator =  (SimpleVector<T>&& other) {
+         SimpleVector<T>& operator =  (SimpleVector<T>&& other) {
     entity = move(other.entity);
     return *this;
   }
-  inline       bool             operator == (const SimpleVector<T>& other) const {
+         bool             operator == (const SimpleVector<T>& other) const {
     return ! (*this != other);
   }
-  inline       bool             operator != (const SimpleVector<T>& other) const {
+         bool             operator != (const SimpleVector<T>& other) const {
     if(entity.size() != other.entity.size()) return true;
     for(int i = 0; i < entity.size(); i ++)
       if(entity[i] != other.entity[i]) return true;
     return false;
   }
-  template <typename U> inline T dot(const SimpleVector<U>& other) const {
+  template <typename U>  T dot(const SimpleVector<U>& other) const {
     SimpleVector<T> work(other.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1369,13 +1389,13 @@ public:
       res += work[i];
     return res;
   }
-  inline       T&               operator [] (const int& idx) {
+         T&               operator [] (const int& idx) {
     return entity[idx];
   }
-  inline const T&               operator [] (const int& idx) const {
+   const T&               operator [] (const int& idx) const {
     return entity[idx];
   }
-  template <typename U> inline SimpleVector<U> real() const {
+  template <typename U>  SimpleVector<U> real() const {
     SimpleVector<U> result(entity.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1384,7 +1404,7 @@ public:
       result.entity[i] = U(entity[i].real());
     return result;
   }
-  template <typename U> inline SimpleVector<U> imag() const {
+  template <typename U>  SimpleVector<U> imag() const {
     SimpleVector<U> result(entity.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1393,7 +1413,7 @@ public:
       result.entity[i] = U(entity[i].imag());
     return result;
   }
-  template <typename U> inline SimpleVector<U> cast() const {
+  template <typename U>  SimpleVector<U> cast() const {
     SimpleVector<U> result(entity.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1402,14 +1422,14 @@ public:
       result.entity[i] = U(entity[i]);
     return result;
   }
-  inline const int size() const {
+   const int size() const {
     return entity.size();
   }
-  inline       void resize(const int& size) {
+         void resize(const int& size) {
     entity.resize(size);
     return;
   }
-  inline       SimpleVector<T>  subVector(const int& i, const int& s) const {
+         SimpleVector<T>  subVector(const int& i, const int& s) const {
     SimpleVector<T> res(s);
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1418,7 +1438,7 @@ public:
       res[ii - i] = (*this)[ii];
     return res;
   }
-  inline       SimpleVector<T>& setVector(const int& i, const SimpleVector<T>& d) {
+         SimpleVector<T>& setVector(const int& i, const SimpleVector<T>& d) {
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -1426,10 +1446,10 @@ public:
       (*this)[ii] = d[ii - i];
     return *this;
   }
-  inline       SimpleVector<T>& O(const T& r = T(int(0))) {
+         SimpleVector<T>& O(const T& r = T(int(0))) {
     return I(r);
   }
-  inline       SimpleVector<T>& I(const T& r = T(int(1))) {
+         SimpleVector<T>& I(const T& r = T(int(1))) {
 #if defined(_OPENMP)
 #pragma omp simd
 #endif
@@ -1437,7 +1457,7 @@ public:
       (*this)[i] = r;
     return *this;
   }
-  inline       SimpleVector<T>& ek(const int& i, const T& r = T(int(1))) {
+         SimpleVector<T>& ek(const int& i, const T& r = T(int(1))) {
     const T zero(0);
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1446,7 +1466,7 @@ public:
       (*this)[ii] = ii == i ? r : zero;
     return *this;
   }
-  inline       SimpleVector<T>  reverse() {
+         SimpleVector<T>  reverse() {
     SimpleVector<T> res(entity.size());
 #if defined(_OPENMP)
 #pragma omp simd
@@ -1464,17 +1484,17 @@ public:
 
 template <typename T> class SimpleMatrix {
 public:
-  inline SimpleMatrix() { ecols = 0; }
-  inline SimpleMatrix(const int& rows, const int& cols) {
+   SimpleMatrix() { ecols = 0; }
+   SimpleMatrix(const int& rows, const int& cols) {
     entity.entity.resize(rows);
     for(int i = 0; i < entity.size(); i ++)
       entity[i].resize(cols);
     ecols = cols;
   }
-  inline SimpleMatrix(const SimpleMatrix<T>& other) { *this = other; }
-  inline SimpleMatrix(SimpleMatrix<T>&& other) { *this = other; }
-  inline ~SimpleMatrix() { ; }
-  inline       SimpleMatrix<T>  operator -  () const {
+   SimpleMatrix(const SimpleMatrix<T>& other) { *this = other; }
+   SimpleMatrix(SimpleMatrix<T>&& other) { *this = other; }
+   ~SimpleMatrix() { ; }
+         SimpleMatrix<T>  operator -  () const {
     SimpleMatrix<T> res(entity.size(), ecols);
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
@@ -1483,11 +1503,11 @@ public:
       res.entity[i] = - entity[i];
     return res;
   }
-  inline       SimpleMatrix<T>  operator +  (const SimpleMatrix<T>& other) const {
+         SimpleMatrix<T>  operator +  (const SimpleMatrix<T>& other) const {
     SimpleMatrix<T> res(*this);
     return res += other;
   }
-  inline       SimpleMatrix<T>& operator += (const SimpleMatrix<T>& other) {
+         SimpleMatrix<T>& operator += (const SimpleMatrix<T>& other) {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -1495,18 +1515,18 @@ public:
       entity[i] += other.entity[i];
     return *this;
   }
-  inline       SimpleMatrix<T>  operator -  (const SimpleMatrix<T>& other) const {
+         SimpleMatrix<T>  operator -  (const SimpleMatrix<T>& other) const {
     SimpleMatrix<T> res(*this);
     return res -= other;
   }
-  inline       SimpleMatrix<T>& operator -= (const SimpleMatrix<T>& other) {
+         SimpleMatrix<T>& operator -= (const SimpleMatrix<T>& other) {
     return *this += - other;
   }
-  inline       SimpleMatrix<T>  operator *  (const T& other) const {
+         SimpleMatrix<T>  operator *  (const T& other) const {
     SimpleMatrix<T> res(*this);
     return res *= other;
   }
-  inline       SimpleMatrix<T>& operator *= (const T& other) {
+         SimpleMatrix<T>& operator *= (const T& other) {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -1514,7 +1534,7 @@ public:
       entity[i] *= other;
     return *this;
   }
-  inline       SimpleMatrix<T>  operator *  (const SimpleMatrix<T>& other) const {
+         SimpleMatrix<T>  operator *  (const SimpleMatrix<T>& other) const {
     SimpleMatrix<T> derived(other.transpose());
     SimpleMatrix<T> res(entity.size(), other.ecols);
 #if defined(_OPENMP)
@@ -1528,10 +1548,10 @@ public:
     }
     return res;
   }
-  inline       SimpleMatrix<T>& operator *= (const SimpleMatrix<T>& other) {
+         SimpleMatrix<T>& operator *= (const SimpleMatrix<T>& other) {
     return *this = *this * other;
   }
-  inline       SimpleVector<T>  operator *  (const SimpleVector<T>& other) const {
+         SimpleVector<T>  operator *  (const SimpleVector<T>& other) const {
     SimpleVector<T> res(entity.size());
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
@@ -1540,11 +1560,11 @@ public:
       res[i] = entity[i].dot(other);
     return res;
   }
-  inline       SimpleMatrix<T>  operator /  (const T& other) const {
+         SimpleMatrix<T>  operator /  (const T& other) const {
     SimpleMatrix<T> res(*this);
     return res /= other;
   }
-  inline       SimpleMatrix<T>& operator /= (const T& other) {
+         SimpleMatrix<T>& operator /= (const T& other) {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -1552,51 +1572,51 @@ public:
       entity[i] /= other;
     return *this;
   }
-  inline       SimpleMatrix<T>& operator =  (const SimpleMatrix<T>& other) {
+         SimpleMatrix<T>& operator =  (const SimpleMatrix<T>& other) {
     ecols  = other.ecols;
     entity = other.entity;
     return *this;
   }
-  inline       SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other) {
+         SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other) {
     ecols  = move(other.ecols);
     entity = move(other.entity);
     return *this;
   }
-  inline       bool             operator == (const SimpleMatrix<T>& other) const {
+         bool             operator == (const SimpleMatrix<T>& other) const {
     return ! (*this != other);
   }
-  inline       bool             operator != (const SimpleMatrix<T>& other) const {
+         bool             operator != (const SimpleMatrix<T>& other) const {
     if(entity.size() != other.entity.size() || ecols != other.ecols)
       return true;
     for(int i = 0; i < entity.size(); i ++)
       if(entity[i] != other.entity[i]) return true;
     return false;
   }
-  inline       T&               operator () (const int& y, const int& x) {
+         T&               operator () (const int& y, const int& x) {
     return entity[y][x];
   }
-  inline const T&               operator () (const int& y, const int& x) const {
+   const T&               operator () (const int& y, const int& x) const {
     return entity[y][x];
   }
-  inline       SimpleVector<T>& row(const int& y) {
+         SimpleVector<T>& row(const int& y) {
     return entity[y];
   }
-  inline const SimpleVector<T>& row(const int& y) const {
+   const SimpleVector<T>& row(const int& y) const {
     return entity[y];
   }
-  inline const SimpleVector<T>  col(const int& x) const {
+   const SimpleVector<T>  col(const int& x) const {
     SimpleVector<T> res(entity.size());
     for(int i = 0; i < entity.size(); i ++)
       res[i] = entity[i][x];
     return res;
   }
-  inline       void             setCol(const int& x, const SimpleVector<T>& other) {
+         void             setCol(const int& x, const SimpleVector<T>& other) {
     for(int i = 0; i < entity.size(); i ++)
       entity[i][x] = other[i];
     return;
   }
   // N.B. transpose : exhaust of the resource, so Eigen library handles better.
-  inline       SimpleMatrix<T>  transpose() const {
+         SimpleMatrix<T>  transpose() const {
     SimpleMatrix<T> res(ecols, entity.size());
     for(int i = 0; i < ecols; i ++) {
       SimpleVector<T>& resi(res.entity[i]);
@@ -1605,34 +1625,34 @@ public:
     }
     return res;
   }
-  inline       SimpleMatrix<T>  subMatrix(const int& y, const int& x, const int& h, const int& w) const {
+         SimpleMatrix<T>  subMatrix(const int& y, const int& x, const int& h, const int& w) const {
     SimpleMatrix<T> res(h, w);
     for(int i = y; i < y + h; i ++)
       for(int j = x; j < x + w; j ++)
         res(i - y, j - x) = (*this)(i, j);
     return res;
   }
-  inline       SimpleMatrix<T>& setMatrix(const int& y, const int& x, const SimpleMatrix<T>& d) {
+         SimpleMatrix<T>& setMatrix(const int& y, const int& x, const SimpleMatrix<T>& d) {
     for(int i = y; i < y + d.rows(); i ++)
       for(int j = x; j < x + d.cols(); j ++)
         (*this)(i, j) = d(i - y, j - x);
     return *this;
   }
-  inline       SimpleMatrix<T>& O(const T& r = T(int(0))) {
+         SimpleMatrix<T>& O(const T& r = T(int(0))) {
     for(int i = 0; i < rows(); i ++)
       for(int j = 0; j < cols(); j ++)
         (*this)(i, j) = r;
     return *this;
   }
-  inline       SimpleMatrix<T>& I(const T& r = T(int(1))) {
+         SimpleMatrix<T>& I(const T& r = T(int(1))) {
     const T zero(0);
     for(int i = 0; i < rows(); i ++)
       for(int j = 0; j < cols(); j ++)
         (*this)(i, j) = (i == j ? r : zero);
     return *this;
   }
-  inline       T                determinant(const bool& nonzero = false) const;
-  inline       SimpleMatrix<T>  inverse() const {
+         T                determinant(const bool& nonzero = false) const;
+         SimpleMatrix<T>  inverse() const {
     // XXX: extremely slow implementation.
     SimpleMatrix<T> result(entity.size(), ecols);
     result.I();
@@ -1640,45 +1660,45 @@ public:
       result.setCol(i, solve(result.col(i)));
     return result;
   }
-  inline       SimpleVector<T>  solve(SimpleVector<T> other) const;
-  inline       SimpleVector<T>  solveN(SimpleVector<T> other) const;
-  inline       SimpleVector<T>  projectionPt(const SimpleVector<T>& other) const;
-  inline       SimpleMatrix<T>& fillP(const vector<int>& idx);
-  inline       SimpleMatrix<T>  QR() const;
-  inline       SimpleMatrix<T>  SVDleft1d() const;
-  inline       pair<SimpleMatrix<T>, SimpleMatrix<T> > SVD1d() const;
-  inline       SimpleMatrix<T> SVD() const;
-  inline       pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SVD(const SimpleMatrix<T>& src) const;
-  inline       SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx);
-  inline       SimpleVector<T>  inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const;
-  template <typename U> inline SimpleMatrix<U> real() const {
+         SimpleVector<T>  solve(SimpleVector<T> other) const;
+         SimpleVector<T>  solveN(SimpleVector<T> other) const;
+         SimpleVector<T>  projectionPt(const SimpleVector<T>& other) const;
+         SimpleMatrix<T>& fillP(const vector<int>& idx);
+         SimpleMatrix<T>  QR() const;
+         SimpleMatrix<T>  SVDleft1d() const;
+         pair<SimpleMatrix<T>, SimpleMatrix<T> > SVD1d() const;
+         SimpleMatrix<T> SVD() const;
+         pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SVD(const SimpleMatrix<T>& src) const;
+         SimpleVector<T>  zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx);
+         SimpleVector<T>  inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const;
+  template <typename U>  SimpleMatrix<U> real() const {
     SimpleMatrix<U> res(entity.size(), ecols);
     for(int i = 0; i < entity.size(); i ++)
       for(int j = 0; j < ecols; j ++)
         res(i, j) = U(entity[i][j].real());
     return res;
   }
-  template <typename U> inline SimpleMatrix<U> imag() const {
+  template <typename U>  SimpleMatrix<U> imag() const {
     SimpleMatrix<U> res(entity.size(), ecols);
     for(int i = 0; i < entity.size(); i ++)
       for(int j = 0; j < ecols; j ++)
         res(i, j) = U(entity[i][j].imag());
     return res;
   }
-  template <typename U> inline SimpleMatrix<U> cast() const {
+  template <typename U>  SimpleMatrix<U> cast() const {
     SimpleMatrix<U> res(entity.size(), ecols);
     for(int i = 0; i < entity.size(); i ++)
       for(int j = 0; j < ecols; j ++)
         res(i, j) = U(entity[i][j]);
     return res;
   }
-  inline const int rows() const {
+   const int rows() const {
     return entity.size();
   }
-  inline const int cols() const {
+   const int cols() const {
     return ecols;
   }
-  inline       void resize(const int& rows, const int& cols) {
+         void resize(const int& rows, const int& cols) {
     ecols = cols;
     entity.entity.resize(rows);
     for(int i = 0; i < entity.size(); i ++)
@@ -1706,7 +1726,7 @@ public:
   int ecols;
 };
 
-template <typename T> inline T SimpleMatrix<T>::determinant(const bool& nonzero) const {
+template <typename T>  T SimpleMatrix<T>::determinant(const bool& nonzero) const {
   T det(1);
   SimpleMatrix<T> work(*this);
   for(int i = 0; i < entity.size(); i ++) {
@@ -1732,7 +1752,7 @@ template <typename T> inline T SimpleMatrix<T>::determinant(const bool& nonzero)
   return det;
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> other) const {
+template <typename T>  SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector<T> other) const {
   if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) return SimpleVector<T>();
   SimpleMatrix<T> work(*this);
   for(int i = 0; i < entity.size(); i ++) {
@@ -1771,13 +1791,13 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solve(SimpleVector
   return other;
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::solveN(SimpleVector<T> other) const {
+template <typename T>  SimpleVector<T> SimpleMatrix<T>::solveN(SimpleVector<T> other) const {
   if(! (0 <= entity.size() && 0 <= ecols && entity.size() == ecols && entity.size() == other.size()) ) return SimpleVector<T>();
   SimpleVector<T> res;
   return res;
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::projectionPt(const SimpleVector<T>& other) const {
+template <typename T>  SimpleVector<T> SimpleMatrix<T>::projectionPt(const SimpleVector<T>& other) const {
   // also needs class or this->transpose() * (*this) == I assertion is needed.
   SimpleMatrix<T> work(entity.size(), ecols);
 #if defined(_OPENMP)
@@ -1797,7 +1817,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::projectionPt(const
   return res;
 }
 
-template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::fillP(const vector<int>& idx) {
+template <typename T>  SimpleMatrix<T>& SimpleMatrix<T>::fillP(const vector<int>& idx) {
   int ii(0);
   for(int j = 0; j < cols() && ii < idx.size(); j ++) {
     SimpleVector<T> ek(cols());
@@ -1810,7 +1830,8 @@ template <typename T> inline SimpleMatrix<T>& SimpleMatrix<T>::fillP(const vecto
   return *this;
 }
 
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::QR() const {
+template <typename T>  SimpleMatrix<T> SimpleMatrix<T>::QR() const {
+      MFENCE();
   const T norm2(norm2M(*this));
   if(! isfinite(norm2)) return *this;
   SimpleMatrix<T> Q(min(this->rows(), this->cols()), this->rows());
@@ -1825,11 +1846,12 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::QR() const {
       residue.emplace_back(i);
     else
       Q.row(i) = (work /= sqrt(n2));
+      MFENCE();
   }
   return Q.fillP(residue);
 }
 
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVDleft1d() const {
+template <typename T>  SimpleMatrix<T> SimpleMatrix<T>::SVDleft1d() const {
   // N.B. A = QR, (S - lambda I)x = 0 <=> R^t Q^t U = R^-1 Q^t U Lambda
   //        <=> R^t Q^t U Lambda' = R^-1 Q^t U Lambda'^(- 1)
   //      A := R^t, B := Q^t U, C := Lambda'
@@ -1861,7 +1883,7 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVDleft1d() const 
   return (Left * Qt * /* U * */ Right).QR() * Qt;
 }
 
-template <typename T> inline pair<SimpleMatrix<T>, SimpleMatrix<T> > SimpleMatrix<T>::SVD1d() const {
+template <typename T>  pair<SimpleMatrix<T>, SimpleMatrix<T> > SimpleMatrix<T>::SVD1d() const {
   if(this->rows() < this->cols()) {
     SimpleMatrix<T> R(this->transpose().SVDleft1d().transpose());
     return make_pair(((*this) * R).QR(), move(R));
@@ -1871,7 +1893,7 @@ template <typename T> inline pair<SimpleMatrix<T>, SimpleMatrix<T> > SimpleMatri
 }
 
 // XXX: O(n^4) over all, we need O(n^3) methods they make SVD1d as SVDnd.
-template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
+template <typename T>  SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
   SimpleMatrix<T> sym((*this) * this->transpose());
   SimpleMatrix<T> res(sym);
   res.I();
@@ -1883,7 +1905,7 @@ template <typename T> inline SimpleMatrix<T> SimpleMatrix<T>::SVD() const {
   return res;
 }
 
-template <typename T> inline pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SimpleMatrix<T>::SVD(const SimpleMatrix<T>& src) const {
+template <typename T>  pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, SimpleMatrix<T> > SimpleMatrix<T>::SVD(const SimpleMatrix<T>& src) const {
   const T norm2(max(norm2M(*this), norm2M(src)));
   if(! isfinite(norm2)) return *this;
   // refered from : https://en.wikipedia.org/wiki/Generalized_singular_value_decomposition .
@@ -1914,7 +1936,7 @@ template <typename T> inline pair<pair<SimpleMatrix<T>, SimpleMatrix<T> >, Simpl
   return make_pair(make_pair(move(U1), move(U2.fillP(fill))), (Wt * D).transpose().QR() * Qt);
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx) {
+template <typename T>  SimpleVector<T> SimpleMatrix<T>::zeroFix(const SimpleMatrix<T>& A, vector<pair<T, int> > fidx) {
   // N.B. we now have |[A -bb] [x t]| <= 1 condition.
   // N.B. there's no difference |[A - bb] [x t]|^2 <= 1 condition in this.
   //      but not with mixed condition.
@@ -1938,6 +1960,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
   // sort by: |<Q^t(1), q_k>|, we subject to minimize each, to do this,
   //   maximize minimum q_k orthogonality.
   for(int i = 0; i < this->rows() - 1; i ++) {
+      MFENCE();
     int idx(- 1);
     T   M(int(0));
     for(int j = 0; j < fidx.size(); j ++) if(fidx[j].first < T(int(0))) idx = j;
@@ -1956,7 +1979,9 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
     if(n2 <= epsilon())
       continue;
     fixed[fidx[idx].second] = true;
+      MFENCE();
     Pb = *this;
+      MFENCE();
     // N.B. O(mn) can be written into O(lg m + lg n) in many core cond.
     for(int j = 0; j < this->cols(); j ++)
       this->setCol(j, this->col(j) - orth * this->col(j).dot(orth) / n2);
@@ -1975,7 +2000,7 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::zeroFix(const Simp
   return R.solve((*this) * one);
 }
 
-template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const {
+template <typename T>  SimpleVector<T> SimpleMatrix<T>::inner(const SimpleVector<T>& bl, const SimpleVector<T>& bu) const {
   // |(2 / bu) A x - 1 - bl / bu| <= |1 - bl / bu|
   // <=> with (-A, -bu, -bl), |bl| <= |bu|, |(2 / bu) A x - 2| <= 2(1 - bl / bu)
   SimpleVector<T> bU(bu);
@@ -2004,14 +2029,14 @@ template <typename T> inline SimpleVector<T> SimpleMatrix<T>::inner(const Simple
   return res *= t;
 }
 
-template <typename T> static inline T norm2M(const SimpleMatrix<T>& m) {
+template <typename T>  T norm2M(const SimpleMatrix<T>& m) {
   T norm2(m.row(0).dot(m.row(0)));
   for(int i = 1; i < m.rows(); i ++)
     norm2 = max(norm2, m.row(i).dot(m.row(i)));
   return norm2;
 }
 
-template <typename T> static inline SimpleMatrix<T> log(const SimpleMatrix<T>& m) {
+template <typename T>  SimpleMatrix<T> log(const SimpleMatrix<T>& m) {
   const int cut(- log(SimpleMatrix<T>().epsilon()) / log(T(int(2))) * T(int(2)) );
   SimpleMatrix<T> res(m.rows(), m.cols());
   const T c(sqrt(norm2M(m)) * T(2));
@@ -2025,7 +2050,7 @@ template <typename T> static inline SimpleMatrix<T> log(const SimpleMatrix<T>& m
   return res;
 }
 
-template <typename T> static inline SimpleMatrix<T> logSym(const SimpleMatrix<T>& x, const SimpleMatrix<T>& b) {
+template <typename T>  SimpleMatrix<T> logSym(const SimpleMatrix<T>& x, const SimpleMatrix<T>& b) {
   // N.B. Ux Lx Uxt == X := B^A == Ub Ua exp(La) Lb_k Uat Ubt.
   const SimpleMatrix<T> Ub(b.SVD());
   const SimpleMatrix<T> Ubt(b.transpose().SVD());
@@ -2058,7 +2083,7 @@ template <typename T> static inline SimpleMatrix<T> logSym(const SimpleMatrix<T>
   return x;
 }
 
-template <typename T> static inline SimpleMatrix<T> exp01(const SimpleMatrix<T>& m) {
+template <typename T>  SimpleMatrix<T> exp01(const SimpleMatrix<T>& m) {
   SimpleMatrix<T> res(m.rows(), m.cols());
   const int cut(- log(SimpleMatrix<T>().epsilon()) / log(T(int(2))) * T(int(2)) );
   SimpleMatrix<T> buf(m);
@@ -2070,11 +2095,12 @@ template <typename T> static inline SimpleMatrix<T> exp01(const SimpleMatrix<T>&
   return res;
 }
 
-template <typename T> static inline SimpleMatrix<T> pow(const SimpleMatrix<T>& m, const T& p) {
+template <typename T>  SimpleMatrix<T> pow(const SimpleMatrix<T>& m, const T& p) {
   return exp(log(m) * p);
 }
 
-template <typename T> static inline SimpleMatrix<complex(T) > dft(const int& size0) {
+template <typename T>  SimpleMatrix<complex(T) > dft(const int& size0) {
+      MFENCE();
   const int size(abs(size0));
   if(! size) {
     const SimpleMatrix<complex(T) > m0;
@@ -2093,12 +2119,13 @@ template <typename T> static inline SimpleMatrix<complex(T) > dft(const int& siz
         const T s(sin(theta));
         edft( i, j) = complexctor(T)(c,   s);
         eidft(i, j) = complexctor(T)(c, - s) / complexctor(T)(T(size));
+        MFENCE();
       }
   return size0 < 0 ? eidft : edft;
 }
 
 // N.B. integrate(diff) isn't get original but is reasonable on IDFT*DFT meaning.
-template <typename T> static inline SimpleMatrix<T> diff(const int& size0) {
+template <typename T>  SimpleMatrix<T> diff(const int& size0) {
   const int size(abs(size0));
   if(! size) {
     const SimpleMatrix<T> m0;
@@ -2114,6 +2141,7 @@ template <typename T> static inline SimpleMatrix<T> diff(const int& size0) {
     // N.B. we should start this loop with i == 1 on integrate(diff) or inverse.
     //      we also should start with i == 0 on taylor series.
     //      we select latter one.
+      MFENCE();
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
@@ -2124,6 +2152,7 @@ template <typename T> static inline SimpleMatrix<T> diff(const int& size0) {
 #endif
     for(int i = 1; i < II.rows(); i ++)
       II.row(i) /= complexctor(T)(T(int(0)), - T(int(2)) * Pi * T(i) / T(DD.rows()));
+      MFENCE();
     // N.B. if we apply DD onto 1 / (1 / f(x)) graph, it's reverse order.
     //      if we average them, it's the only 0 vector.
     // N.B. there exists also completely correct differential matrix,
@@ -2145,7 +2174,7 @@ template <typename T> static inline SimpleMatrix<T> diff(const int& size0) {
   return size0 < 0 ? ii : dd;
 }
 
-template <typename T> static inline SimpleVector<complex(T) > taylorc(const int& size, const T& step, const T& stepw) {
+template <typename T>  SimpleVector<complex(T) > taylorc(const int& size, const T& step, const T& stepw) {
   const int step00(max(int(0), min(size - 1, int(absfloor(step)))));
   const T   residue0(step - T(step00));
   const int step0(step00 == size - 1 || abs(residue0) <= T(int(1)) / T(int(2)) ? step00 : step00 + 1);
@@ -2161,7 +2190,8 @@ template <typename T> static inline SimpleVector<complex(T) > taylorc(const int&
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static, 1)
 #endif
-  for(int i = 0; i < res.size(); i ++)
+  for(int i = 0; i < res.size(); i ++) {
+      MFENCE();
     res[i] *= step != stepw ? 
       (i ? exp(complexctor(T)(T(int(0)), - T(int(2)) * Pi * T(i) * residue / T(res.size()) ))
           / complexctor(T)(T(int(0)), - T(int(2)) * Pi * T(i) / T(res.size()) )
@@ -2169,19 +2199,20 @@ template <typename T> static inline SimpleVector<complex(T) > taylorc(const int&
           / complexctor(T)(T(int(0)), - T(int(2)) * Pi * T(i) / T(res.size()) ) :
         complexctor(T)(T(int(0))) )
       : exp(complexctor(T)(T(int(0)), - T(int(2)) * Pi * T(i) * residue / T(res.size()) ));
+  }
   return dft<T>(size).transpose() * res;
 }
 
-template <typename T> static inline SimpleVector<T> taylor(const int& size, const T& step, const T& stepw) {
+template <typename T>  SimpleVector<T> taylor(const int& size, const T& step, const T& stepw) {
   return taylorc<T>(size, step, stepw).template real<T>();
 }
 
-template <typename T> static inline SimpleVector<T> taylor(const int& size, const T& step) {
+template <typename T>  SimpleVector<T> taylor(const int& size, const T& step) {
   return taylor<T>(size, step, step);
 }
 
 // N.B. we only need cosine value on invariant, so normalize them into S^n.
-template <typename T> static inline SimpleVector<T> linearInvariant(const SimpleMatrix<T>& in) {
+template <typename T>  SimpleVector<T> linearInvariant(const SimpleMatrix<T>& in) {
   vector<pair<T, int> > sute;
   SimpleVector<T> res(in.QR().zeroFix(in, sute));
   const T nres(res.dot(res));
@@ -2193,7 +2224,7 @@ template <typename T> static inline SimpleVector<T> linearInvariant(const Simple
 // N.B. functions between R and [0,1], ]0,1[.
 myfloat* bm_sqe;
 myfloat* bm_denom;
-template <typename T> static inline T binMargin(const T& in) {
+template <typename T>  T binMargin(const T& in) {
   if(! bm_sqe) {
     bm_sqe   = SimpleAllocator<T>().allocate(1);
     bm_denom = SimpleAllocator<T>().allocate(1);
@@ -2209,86 +2240,86 @@ template <typename T> static inline T binMargin(const T& in) {
   return res;
 }
 
-template <typename T> static inline SimpleVector<T> binMargin(const SimpleVector<T>& in) {
+template <typename T>  SimpleVector<T> binMargin(const SimpleVector<T>& in) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = binMargin<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline T offsetHalf(const T& in, const T& o = T(int(1)) ) {
+template <typename T>  T offsetHalf(const T& in, const T& o = T(int(1)) ) {
   return (in + o) / (T(int(1)) + o);
 }
 
-template <typename T> static inline SimpleVector<T> offsetHalf(const SimpleVector<T>& in, const T& o = T(int(1)) ) {
+template <typename T>  SimpleVector<T> offsetHalf(const SimpleVector<T>& in, const T& o = T(int(1)) ) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = offsetHalf<T>(res[i], o);
   return res;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > offsetHalf(const SimpleVector<SimpleVector<T> >& in, const T& o = T(int(1)) ) {
+template <typename T>  SimpleVector<SimpleVector<T> > offsetHalf(const SimpleVector<SimpleVector<T> >& in, const T& o = T(int(1)) ) {
   SimpleVector<SimpleVector<T> > res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = offsetHalf<T>(res[i], o);
   return res;
 }
 
-template <typename T> static inline T unOffsetHalf(const T& in, const T& o = T(int(1)) ) {
+template <typename T>  T unOffsetHalf(const T& in, const T& o = T(int(1)) ) {
   return in * (T(int(1)) + o) - o;
 }
 
-template <typename T> static inline SimpleVector<T> unOffsetHalf(const SimpleVector<T>& in, const T& o = T(int(1)) ) {
+template <typename T>  SimpleVector<T> unOffsetHalf(const SimpleVector<T>& in, const T& o = T(int(1)) ) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = unOffsetHalf<T>(res[i], o);
   return res;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > unOffsetHalf(const SimpleVector<SimpleVector<T> >& in, const T& o = T(int(1)) ) {
+template <typename T>  SimpleVector<SimpleVector<T> > unOffsetHalf(const SimpleVector<SimpleVector<T> >& in, const T& o = T(int(1)) ) {
   SimpleVector<SimpleVector<T> > res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = unOffsetHalf<T>(res[i], o);
   return res;
 }
 
-template <typename T> static inline T clipBin(const T& in) {
+template <typename T>  T clipBin(const T& in) {
   const T zero(int(0));
   const T one(int(1));
   return max(zero, min(one, in));
 }
 
-template <typename T> static inline SimpleVector<T> clipBin(const SimpleVector<T>& in) {
+template <typename T>  SimpleVector<T> clipBin(const SimpleVector<T>& in) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = clipBin<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline vector<SimpleVector<T> > clipBin(const vector<SimpleVector<T> >& in) {
+template <typename T>  vector<SimpleVector<T> > clipBin(const vector<SimpleVector<T> >& in) {
   vector<SimpleVector<T> > res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = clipBin<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline T cutBin(const T& in) {
+template <typename T>  T cutBin(const T& in) {
   const T zero(int(0));
   const T one(int(1));
   T res(in - absfloor(in));
   return res <= zero ? res += one : res;
 }
 
-template <typename T> static inline T R2bin(const T& in) {
+template <typename T>  T R2bin(const T& in) {
   return offsetHalf<T>(atan(- in) / atan(T(int(1))) / T(int(2)));
 }
 
-template <typename T> static inline SimpleVector<T> R2bin(const SimpleVector<T>& in) {
+template <typename T>  SimpleVector<T> R2bin(const SimpleVector<T>& in) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = R2bin<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline T bin2R(const T& in) {
+template <typename T>  T bin2R(const T& in) {
   return - tan(max(- T(int(1)) + sqrt(SimpleMatrix<T>().epsilon()),
                min(  T(int(1)) - sqrt(SimpleMatrix<T>().epsilon()),
                  unOffsetHalf<T>(in) )) * atan(T(int(1))) * T(int(2)) );
 }
 
-template <typename T> static inline SimpleVector<T> bin2R(const SimpleVector<T>& in) {
+template <typename T>  SimpleVector<T> bin2R(const SimpleVector<T>& in) {
   SimpleVector<T> res(in);
   for(int i = 0; i < res.size(); i ++) res[i] = bin2R<T>(res[i]);
   return res;
@@ -2301,40 +2332,40 @@ template <typename T> T sgn(const T& x) {
   return x != zero ? (zero < x ? one : mone) : zero;
 }
 
-template <typename T> static inline T expscale(const T& x) {
+template <typename T>  T expscale(const T& x) {
   return sgn<T>(x) * (exp(abs(x)) - T(int(1))) /
     (exp(T(int(1))) - T(int(1)));
 }
 
-template <typename T> static inline SimpleVector<T> expscale(const SimpleVector<T>& x) {
+template <typename T>  SimpleVector<T> expscale(const SimpleVector<T>& x) {
   SimpleVector<T> res(x);
   for(int i = 0; i < res.size(); i ++) res[i] = expscale<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > expscale(const SimpleVector<SimpleVector<T> >& x) {
+template <typename T>  SimpleVector<SimpleVector<T> > expscale(const SimpleVector<SimpleVector<T> >& x) {
   SimpleVector<SimpleVector<T> > res(x);
   for(int i = 0; i < res.size(); i ++) res[i] = expscale<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline T logscale(const T& x) {
+template <typename T>  T logscale(const T& x) {
   return sgn<T>(x) * log(abs(x) + T(int(1))) / log(T(int(2)));
 }
 
-template <typename T> static inline SimpleVector<T> logscale(const SimpleVector<T>& x) {
+template <typename T>  SimpleVector<T> logscale(const SimpleVector<T>& x) {
   SimpleVector<T> res(x);
   for(int i = 0; i < res.size(); i ++) res[i] = logscale<T>(res[i]);
   return res;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > logscale(const SimpleVector<SimpleVector<T> >& x) {
+template <typename T>  SimpleVector<SimpleVector<T> > logscale(const SimpleVector<SimpleVector<T> >& x) {
   SimpleVector<SimpleVector<T> > res(x);
   for(int i = 0; i < res.size(); i ++) res[i] = logscale<T>(res[i]);
   return res;
 }
 
-template <typename X> static inline SimpleVector<X> skipX(const SimpleVector<X>& in, const int& step = 1) {
+template <typename X>  SimpleVector<X> skipX(const SimpleVector<X>& in, const int& step = 1) {
   SimpleVector<X> res;
   res.resize((in.size() + step - 1) / step);
   for(int i = (in.size() - 1) % step, ii = 0; i < in.size();
@@ -2342,13 +2373,13 @@ template <typename X> static inline SimpleVector<X> skipX(const SimpleVector<X>&
   return res;
 }
 
-template <typename X> static inline SimpleVector<X> delta(const SimpleVector<X>& in0) {
+template <typename X>  SimpleVector<X> delta(const SimpleVector<X>& in0) {
   SimpleVector<X> in(in0);
   for(int i = 1; i < in.size(); i ++) in[i] = in0[i] - in0[i - 1];
   return in;
 }
 
-template <typename T> static inline T getImgPt(const T& y, const T& h) {
+template <typename T>  T getImgPt(const T& y, const T& h) {
   T yy(y % (2 * h));
   if(yy < 0)
     yy = - yy;
@@ -2359,7 +2390,7 @@ template <typename T> static inline T getImgPt(const T& y, const T& h) {
 
 // N.B. start raw prediction operations.
 // N.B. please refer bitsofcotton/randtools.
-template <typename T> static inline pair<SimpleVector<T>, T> makeProgramInvariant(const SimpleVector<T>& in, const T& index = - T(int(1)) ) {
+template <typename T>  pair<SimpleVector<T>, T> makeProgramInvariant(const SimpleVector<T>& in, const T& index = - T(int(1)) ) {
   SimpleVector<T> res(in.size() + (T(int(0)) <= index ? 2 : 1));
   res.setVector(0, in);
   res[in.size()] = T(int(1));
@@ -2374,19 +2405,19 @@ template <typename T> static inline pair<SimpleVector<T>, T> makeProgramInvarian
   return make_pair(res *= ratio, ratio);
 }
 
-template <typename T> static inline T revertProgramInvariant(const pair<T, T>& in) {
+template <typename T>  T revertProgramInvariant(const pair<T, T>& in) {
   return cutBin<T>(in.second == T(0) ?
     sgn<T>(in.second) / SimpleMatrix<T>().epsilon() : in.first / in.second);
 }
 
-template <typename T> static inline SimpleVector<T> revertProgramInvariant(const pair<SimpleVector<T>, T>& in) {
+template <typename T>  SimpleVector<T> revertProgramInvariant(const pair<SimpleVector<T>, T>& in) {
   SimpleVector<T> res(in.first);
   for(int i = 0; i < in.first.size(); i ++)
     res[i] = revertProgramInvariant<T>(make_pair(res[i], in.second));
   return res;
 }
 
-template <typename T, bool nonlinear> static inline T revertByProgramInvariant(SimpleVector<T> work, const SimpleVector<T>& invariant) {
+template <typename T, bool nonlinear>  T revertByProgramInvariant(SimpleVector<T> work, const SimpleVector<T>& invariant) {
   const T one(int(1));
   const T two(int(2));
   const int idx(work.size() - 1);
@@ -2432,7 +2463,7 @@ template <typename T, bool nonlinear> static inline T revertByProgramInvariant(S
 //      as a invariant.
 // N.B. this is for output is binary case especially sign bit on the
 //      information amount on any p-adics but in [0, 1[.
-static inline int ind2vd(const int& indim) {
+ int ind2vd(const int& indim) {
   const int y(indim / 2 * (indim / 2 - 1));
         int varlen(4);
   for( ; 0 <= varlen && varlen < sizeof(int) * 8 &&
@@ -2440,7 +2471,7 @@ static inline int ind2vd(const int& indim) {
   return max(-- varlen, int(4));
 }
 
-template <typename T> static inline SimpleVector<T> minsq(const int& size) {
+template <typename T>  SimpleVector<T> minsq(const int& size) {
   const T xsum(size * (size - 1) / 2);
   const T xdot(size * (size - 1) * (2 * size - 1) / 6);
   const T denom(xdot * T(size) - xsum * xsum);
@@ -2496,24 +2527,26 @@ template <typename T> const SimpleVector<T>& pnextcacher(const int& size, const 
 //   2^y:=A*(2^x) A in R^(N*N), 2^x in {0,1}^N.
 //   this concludes the recursive structure as:
 //     Sum A_k*cosh(a_k x)+B_k*sinh(b_k x) because A^n calculation.
-template <typename T> static inline T p0next(const SimpleVector<T>& in) {
+template <typename T>  T p0next(const SimpleVector<T>& in) {
   return pnextcacher<T>(in.size(), 1).dot(in);
 }
 
-template <typename T, T (*f)(const SimpleVector<T>&)> static inline T invNext(const SimpleVector<T>& in) {
+template <typename T, T (*f)(const SimpleVector<T>&)>  T invNext(const SimpleVector<T>& in) {
   const T zero(int(0));
   const T one(int(1));
   SimpleVector<T> ff(in);
   for(int i = 0; i < in.size(); i ++) if(in[i] == zero) return in[in.size() - 1];
   else ff[i] = one / in[i];
+      MFENCE();
   const T pn(f(ff));
   if(pn == zero) return in[in.size() - 1];
+      MFENCE();
   return one / pn;
 }
 
 // N.B. some of the essential point hack.
 myfloat* npoleM;
-template <typename T, T (*f)(const SimpleVector<T>&)> static inline T northPoleNext(const SimpleVector<T>& in) {
+template <typename T, T (*f)(const SimpleVector<T>&)>  T northPoleNext(const SimpleVector<T>& in) {
   const T zero(int(0));
   const T one(int(1));
   if(! npoleM) {
@@ -2531,51 +2564,58 @@ template <typename T, T (*f)(const SimpleVector<T>&)> static inline T northPoleN
       // ff[i] = atan(one / ff[i]);
       // assert(- M < ff[i] && ff[i] < M);
     }
+      MFENCE();
   T work(f(ff));
   // if(! isfinite(work) || work == zero) return in[in.size() - 1];
   if(! isfinite(work)) return in[in.size() - 1];
   // work = tan(max(- M, min(M, one / tan(max(- M, min(M, work))))));
   work = tan(max(- M, min(M, work)));
   if(isfinite(work)) return work;
+      MFENCE();
   return in[in.size() - 1];
 }
 
 // N.B. we can add some of the conditions on x_next := integrate^x f(x_now)
 //   form with x'_next := integrate^x (f_x'now - alpha) + beta transforms.
-template <typename T, bool avg, T (*f)(const SimpleVector<T>&)> static inline T sumCNext(const SimpleVector<T>& in) {
+template <typename T, bool avg, T (*f)(const SimpleVector<T>&)>  T sumCNext(const SimpleVector<T>& in) {
   SimpleVector<T> ff(in);
   for(int i = 1; i < ff.size(); i ++)
     ff[i] += ff[i - 1];
+      MFENCE();
   if(! avg) return f(ff) - ff[ff.size() - 1];
+      MFENCE();
   const T A(ff[ff.size() - 1] / T(ff.size()));
   for(int i = 0; i < ff.size(); i ++)
     ff[i] = in[i] - A;
+      MFENCE();
   return f(ff) + A;
 }
 
 // N.B. Sum(d_k)/Sum(d_(k-1)) - 1 with i-axis plotted Sum f'/f goes to near
 //      log(f), once goes log(f) + i pi/2, the series can be arg(z) depend one.
-template <typename T, T (*f)(const SimpleVector<T>&)> static inline T logCNext(const SimpleVector<T>& in) {
+template <typename T, T (*f)(const SimpleVector<T>&)>  T logCNext(const SimpleVector<T>& in) {
   const T zero(int(0));
   const T one(int(1));
   SimpleVector<T> ff(in);
   if(ff[0] == zero) return in[in.size() - 1];
   for(int i = 1; i < ff.size(); i ++)
     if((ff[i] += ff[i - 1]) == zero) return in[in.size() - 1];
+      MFENCE();
   SimpleVector<T> gg(ff.size() - 1);
   gg.O();
   for(int i = 1; i < ff.size(); i ++)
     if(! isfinite(gg[i - 1] = ff[i] / ff[i - 1] - one)) return in[in.size() - 1];
+      MFENCE();
   return f(gg) * ff[ff.size() - 1];
 }
 
-template <typename T> static inline T p0max0next(const SimpleVector<T>& in) {
+template <typename T>  T p0max0next(const SimpleVector<T>& in) {
   // N.B. on existing taylor series in surface.
   return (sumCNext<T, true, p0next<T> >(in) +
     invNext<T, sumCNext<T, true, p0next<T> > >(in)) / T(int(2));
 }
 
-template <typename T> static inline T p0maxNext(const SimpleVector<T>& in) {
+template <typename T>  T p0maxNext(const SimpleVector<T>& in) {
   // N.B. we only handle Riemann measurable and R(finite)-valued functions.
   //      so worse structures are handled by p01next or p012next.
   // N.B. o-minimal
@@ -2646,16 +2686,17 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
   const int varlen(ind2vd(in.size()));
   if(! isfinite(nin) || nin == zero) {
     vector<T> res;
-    res.resize(max(int(1), int(in.size()) - varlen + 1), zero);
+    res.resize(max(int(1), int(in.size()) - varlen + 2), zero);
     return res;
   }
   SimpleMatrix<T> invariants(max(int(1), int(in.size()) - varlen + 2), varlen + 2);
   invariants.O();
+      MFENCE();
   for(int i0 = varlen * 2 + 1; i0 < invariants.rows(); i0 ++) {
     SimpleMatrix<T> toeplitz(i0, invariants.cols());
     for(int i = 0; i < toeplitz.rows(); i ++) {
       SimpleVector<T> work(in.subVector(i, varlen));
-      work[work.size() - 1] = in[i + varlen - 1];
+      // work[work.size() - 1] = in[i + varlen - 1];
       toeplitz.row(i) = makeProgramInvariant<T>(work,
         T(i + 1) / T(toeplitz.rows() + 1) ).first;
     }
@@ -2685,6 +2726,7 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
       invariant.O();
       for(int i = 0; i < invariants.cols(); i ++)
         invariant[i] = p0maxNext<T>(invariants.col(i).subVector(0, j));
+      MFENCE();
     }
     SimpleVector<T> work(varlen);
     for(int i = 1; i < work.size(); i ++)
@@ -2696,7 +2738,7 @@ template <typename T> vector<T> p01nextM(const SimpleVector<T>& in) {
   return res;
 }
 
-template <typename T> static inline T p01next(const SimpleVector<T>& in) {
+template <typename T>  T p01next(const SimpleVector<T>& in) {
   vector<T> res(p01nextM<T>(in));
   return res[res.size() - 1];
 }
@@ -2704,14 +2746,14 @@ template <typename T> static inline T p01next(const SimpleVector<T>& in) {
 // N.B. class-capsules for serial stream.
 template <typename T> class idFeeder {
 public:
-  inline idFeeder(const int& size = 0) {
+   idFeeder(const int& size = 0) {
     res.resize(size);
     res.O();
     full = size ? 0 : 2;
     t = 0;
   }
-  inline ~idFeeder() { ; }
-  inline const SimpleVector<T>& next(const T& in) {
+   ~idFeeder() { ; }
+   const SimpleVector<T>& next(const T& in) {
     if(full == 2) {
       res.entity.emplace_back(in);
       ++ t;
@@ -2732,7 +2774,7 @@ public:
   int  t;
 };
  
-template <typename T> static inline pair<SimpleVector<SimpleVector<T> >, T> normalizeS(const SimpleVector<SimpleVector<T> >& in) {
+template <typename T>  pair<SimpleVector<SimpleVector<T> >, T> normalizeS(const SimpleVector<SimpleVector<T> >& in) {
   pair<SimpleVector<SimpleVector<T> >, T> res;
   res.second = T(int(0));
   for(int i = 0; i < in.size(); i ++) for(int j = 0; j < in[i].size(); j ++)
@@ -2745,7 +2787,7 @@ template <typename T> static inline pair<SimpleVector<SimpleVector<T> >, T> norm
   return res;
 }
 
-template <typename T> static inline vector<vector<SimpleMatrix<T> > > normalize(const vector<vector<SimpleMatrix<T> > >& data, const T& upper = T(1)) {
+template <typename T>  vector<vector<SimpleMatrix<T> > > normalize(const vector<vector<SimpleMatrix<T> > >& data, const T& upper = T(1)) {
   T MM(0), mm(0);
   bool fixed(false);
   for(int kk = 0; kk < data.size(); kk ++)
@@ -2785,7 +2827,7 @@ template <typename T> static inline vector<vector<SimpleMatrix<T> > > normalize(
   return result;
 }
 
-template <typename T> static inline vector<SimpleMatrix<T> > normalize(vector<SimpleMatrix<T> >& data, const T& upper = T(1)) {
+template <typename T>  vector<SimpleMatrix<T> > normalize(vector<SimpleMatrix<T> >& data, const T& upper = T(1)) {
   vector<vector<SimpleMatrix<T> > > work;
   work.emplace_back(move(data));
   vector<SimpleMatrix<T> > res(normalize<T>(work, upper)[0]);
@@ -2793,12 +2835,12 @@ template <typename T> static inline vector<SimpleMatrix<T> > normalize(vector<Si
   return res;
 }
 
-template <typename T> static inline vector<SimpleMatrix<T> > normalize(const vector<SimpleMatrix<T> >& in, const T& upper = T(1)) {
+template <typename T>  vector<SimpleMatrix<T> > normalize(const vector<SimpleMatrix<T> >& in, const T& upper = T(1)) {
   vector<SimpleMatrix<T> > d(in);
   return normalize<T>(d, upper);
 }
 
-template <typename T> static inline SimpleMatrix<T> normalize(SimpleMatrix<T>& data, const T& upper = T(1)) {
+template <typename T>  SimpleMatrix<T> normalize(SimpleMatrix<T>& data, const T& upper = T(1)) {
   vector<SimpleMatrix<T> > work;
   work.emplace_back(move(data));
   SimpleMatrix<T> res(normalize<T>(work, upper)[0]);
@@ -2806,12 +2848,12 @@ template <typename T> static inline SimpleMatrix<T> normalize(SimpleMatrix<T>& d
   return res;
 }
 
-template <typename T> static inline SimpleMatrix<T> normalize(const SimpleMatrix<T>& in, const T& upper = T(1)) {
+template <typename T>  SimpleMatrix<T> normalize(const SimpleMatrix<T>& in, const T& upper = T(1)) {
   SimpleMatrix<T> d(in);
   return normalize<T>(d, upper);
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<SimpleVector<T> > > normalize(const SimpleVector<SimpleVector<SimpleVector<T> > >& in, const T& upper = T(1)) {
+template <typename T>  SimpleVector<SimpleVector<SimpleVector<T> > > normalize(const SimpleVector<SimpleVector<SimpleVector<T> > >& in, const T& upper = T(1)) {
   SimpleVector<SimpleVector<SimpleMatrix<T> > > w;
   w.resize(in.size());
   for(int i = 0; i < in.size(); i ++) {
@@ -2831,21 +2873,21 @@ template <typename T> static inline SimpleVector<SimpleVector<SimpleVector<T> > 
   return v;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > normalize(const SimpleVector<SimpleVector<T> >& in, const T& upper = T(1)) {
+template <typename T>  SimpleVector<SimpleVector<T> > normalize(const SimpleVector<SimpleVector<T> >& in, const T& upper = T(1)) {
   SimpleMatrix<T> w;
   w.resize(in.size(), in[0].size());
   w.entity  = in;
   return normalize<T>(w, upper).entity;
 }
 
-template <typename T> static inline SimpleVector<T> normalize(const SimpleVector<T>& in, const T& upper = T(1)) {
+template <typename T>  SimpleVector<T> normalize(const SimpleVector<T>& in, const T& upper = T(1)) {
   SimpleMatrix<T> w;
   w.resize(1, in.size());
   w.row(0) = in;
   return normalize<T>(w, upper).row(0);
 }
 
-template <typename T> static inline SimpleMatrix<T> rotate(const SimpleMatrix<T>& d, const T& theta) {
+template <typename T>  SimpleMatrix<T> rotate(const SimpleMatrix<T>& d, const T& theta) {
   const T c(cos(theta));
   const T s(sin(theta));
   const int h0(abs(int(c * T(d.rows()) - s * T(d.cols()))));
@@ -2879,7 +2921,7 @@ template <typename T> static inline SimpleMatrix<T> rotate(const SimpleMatrix<T>
   return res;
 }
 
-template <typename T> static inline SimpleMatrix<T> center(const SimpleMatrix<T>& dr, const SimpleMatrix<T>& d) {
+template <typename T>  SimpleMatrix<T> center(const SimpleMatrix<T>& dr, const SimpleMatrix<T>& d) {
   SimpleMatrix<T> res(d.rows(), d.cols());
   for(int i = 0; i < res.rows(); i ++)
     for(int j = 0; j < res.cols(); j ++)
@@ -2888,7 +2930,7 @@ template <typename T> static inline SimpleMatrix<T> center(const SimpleMatrix<T>
   return res;
 }
 
-template <typename T, bool useful> static inline SimpleVector<T> bitsG(const SimpleVector<T>& d, const int& b) {
+template <typename T, bool useful>  SimpleVector<T> bitsG(const SimpleVector<T>& d, const int& b) {
   SimpleVector<T> res;
   if(b < 0) {
     res.resize(d.size() / abs(b));
@@ -2911,7 +2953,7 @@ template <typename T, bool useful> static inline SimpleVector<T> bitsG(const Sim
   return res;
 }
 
-template <typename T, bool useful> static inline SimpleVector<SimpleVector<T> > bitsG(const SimpleVector<SimpleVector<T> >& d, const int& b) {
+template <typename T, bool useful>  SimpleVector<SimpleVector<T> > bitsG(const SimpleVector<SimpleVector<T> >& d, const int& b) {
   SimpleVector<SimpleVector<T> > res(d);
   for(int i = 0; i < res.size(); i ++) res[i] = bitsG<T, useful>(res[i], b);
   return res;
@@ -2942,6 +2984,7 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pRS(const Si
     pair<SimpleVector<T>, T> work(makeProgramInvariant<T>(work0.res));
     for(int j = 0; j < intran.size(); j ++) intran[j][i] = move(work.first[j]);
     seconds[i] = move(work.second);
+      MFENCE();
   }
   T M(int(0));
   for(int i = 0; i < intran.size(); i ++)
@@ -2966,6 +3009,7 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pRS(const Si
   const T nseconds(sqrt(seconds.dot(seconds)) );
   const vector<T> peconds(p01nextM<T>(seconds / nseconds));
   assert(p.size() == peconds.size());
+      MFENCE();
   for(int i = 0; i < p.size(); i ++)
     p[i] = unOffsetHalf<T>(revertProgramInvariant<T>(make_pair(
       makeProgramInvariant<T>(normalize<T>(p[i])).first, peconds[i] * nseconds)
@@ -2973,7 +3017,7 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pRS(const Si
   return p;
 }
 
-template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pRS00(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
+template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pRS00(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
   SimpleVector<SimpleVector<T> > intran;
   intran.resize(in[0].size());
   for(int i = 0; i < intran.size(); i ++) {
@@ -2981,37 +3025,63 @@ template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> 
     for(int j = 0; j < intran[i].size(); j ++)
       intran[i][j] = in[j][i];
   }
+      MFENCE();
   return pRS<T, nprogress>(intran, strloop);
 }
 
-template <typename T, int nprogress> static inline SimpleVector<T> pRS0(const SimpleVector<SimpleVector<T> >& in) {
+template <typename T, int nprogress>  SimpleVector<T> pRS0(const SimpleVector<SimpleVector<T> >& in) {
   SimpleVector<SimpleVector<T> > res(pRS00<T, nprogress>(in, string("")) );
   return res[res.size() - 1];
 }
 
 // N.B. p01next output meaning only binary we make hypothesis.
-template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pGuaranteeM(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
+template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pGuaranteeM(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
   SimpleVector<SimpleVector<T> > res(
 // N.B. we don't get 100% result on each prediction, so upper bit broken case,
 //      lower bits says nothing.
     pRS00<T, nprogress>(bitsG<T, true>(in, 3), strloop) );
+      MFENCE();
   for(int i = 0; i < res.size(); i ++)
     res[i] = bitsG<T, true>(res[i], - 3);
   return res;
 }
 
-template <typename T, int nprogress> static inline SimpleVector<T> pGuarantee(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
+template <typename T> static inline SimpleVector<T> bitsSlide(const SimpleVector<T>& d, const int& b) {
+  assert(0 < b);
+  SimpleVector<T> res(d.size() * b);
+  for(int j = 0; j < d.size(); j ++) {
+    T w(d[j]);
+    for(int k = 0; k < b; k ++) {
+      res[j * b + k] = w;
+      w *= T(int(2));
+      const T ww(absfloor(w));
+      w -= ww;
+      w += ww / T(int(1) << b);
+    }
+  }
+  return res;
+}
+
+template <typename T> static inline SimpleVector<SimpleVector<T> > bitsSlide(const SimpleVector<SimpleVector<T> >& d, const int& b) {
+  SimpleVector<SimpleVector<T> > res(d);
+  for(int i = 0; i < res.size(); i ++) res[i] = bitsSlide<T>(res[i], b);
+  return res;
+}
+
+template <typename T, int nprogress>  SimpleVector<T> pGuarantee(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
   SimpleVector<SimpleVector<T> > res(pGuaranteeM<T, nprogress>(in, strloop));
   return res[res.size() - 1];
 }
 
 // N.B. add whole context length markov feeding.
-template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> > pWholeMarkovM(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarkovM(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   assert(0 < bits);
   pair<SimpleVector<SimpleVector<T> >, T> wp(normalizeS<T>(
     delta<SimpleVector<T> >(in) ));
+      MFENCE();
   SimpleVector<SimpleVector<T> > p(unOffsetHalf<T>(pRS00<T, nprogress>(
     offsetHalf<T>(wp.first), strloop)) );
+      MFENCE();
   for(int i0 = 0; i0 < p.size(); i0 ++)
     for(int i = 0; i < p[i0].size() / bits; i ++) {
       for(int j = 0; j < bits - 2; j ++) {
@@ -3022,22 +3092,97 @@ template <typename T, int nprogress> static inline SimpleVector<SimpleVector<T> 
       for(int j = bits - 2; j < bits; j ++)
         p[i0][i * bits + j] = T(int(0));
     }
+      MFENCE();
   for(int i = 0; i < p.size(); i ++) p[i] *= wp.second;
+      MFENCE();
   for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+      MFENCE();
   return p;
 }
 
-template <typename T, int nprogress> static inline SimpleVector<T> pWholeMarkov(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+template <typename T, int nprogress>  SimpleVector<T> pWholeMarkov(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   SimpleVector<SimpleVector<T> > p(
     pWholeMarkovM<T, nprogress>(in, bits, strloop) );
   return p[p.size() - 1];
+}
+
+template <typename T>  SimpleVector<SimpleVector<T> > cherryStat(const SimpleVector<SimpleVector<T> >& p, const SimpleVector<SimpleVector<T> >& in) {
+  SimpleVector<T> jv(p[0].size());
+  jv.O();
+  for(int i = 0; i < p.size() - 1; i ++)
+    for(int j = 0; j < p[i].size(); j ++)
+      jv[j] += p[i][j] * in[i - (p.size() - 1) + in.size()][j];
+  MFENCE();
+  SimpleVector<SimpleVector<T> > res(p);
+  for(int j = 0; j < jv.size(); j ++)
+    if(jv[j] < T(int(0)) ) for(int i = 0; i < res.size(); i ++)
+      res[i][j] = - res[i][j];
+  MFENCE();
+  return res;
+}
+
+// N.B. cherry pick after prediction.
+//      if the original prediction correctly handles the upper single function,
+//      even they can have sign bit attacks. however, if we correctly handle
+//      the whole single function integrity, another dimensions to attack is
+//      worse to exist.
+template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarkovCherry(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+  MFENCE();
+  return cherryStat<T>(pWholeMarkovM<T, nprogress>(in, bits, strloop),
+    unOffsetHalf<T>(in) );
 }
 
 #if !defined(_P_PRNG_)
 #define _P_PRNG_ 11
 #endif
 
-// N.B. each pixel prediction with PRNG blended stream.
+ SimpleVector<SimpleVector<char> > preparePRNG(const int& len, const int& size) {
+  MFENCE();
+  SimpleVector<SimpleVector<char> > res(len);
+  for(int j = 0; j < res.size(); j ++) {
+    res[j].resize(size);
+    for(int k = 0; k < res[j].size(); k ++)
+#if defined(_ARCFOUR_)
+      res[j][k] = arc4random() & 1;
+#else
+      res[j][k] = random() & 1;
+#endif
+  MFENCE();
+  }
+  return res;
+}
+
+template <typename T>  SimpleVector<SimpleVector<T> > applyPrepPRNG(const SimpleVector<SimpleVector<T> >& in, const SimpleVector<SimpleVector<char> >& prng) {
+  MFENCE();
+  SimpleVector<SimpleVector<T> > res(in.size());
+  for(int j = 0; j < res.size(); j ++) {
+    res[j].resize(prng[j].size());
+    for(int k = 0; k < res[j].size(); k ++)
+      res[j][k] = prng[j][k] ? - in[j][k / (prng[j].size() / in[j].size())] :
+        in[j][k / (prng[j].size() / in[j].size())];
+  MFENCE();
+  }
+  return res;
+}
+
+template <typename T>  SimpleVector<SimpleVector<T> > applyPostPRNG(const SimpleVector<SimpleVector<T> >& in, const SimpleVector<SimpleVector<char> >& prng, const int& size) {
+  MFENCE();
+  SimpleVector<SimpleVector<T> > res(in.size());
+  for(int i = 0; i < in.size(); i ++) {
+    res[i].resize(size);
+    res[i].O();
+    const SimpleVector<char>& lprng(prng[i - in.size() + prng.size()]);
+    for(int j = 0; j < res[i].size(); j ++)
+      for(int k = 0; k < lprng.size() / res[i].size(); k ++)
+        res[i][j] += lprng[j * (lprng.size() / res[i].size()) + k] ?
+          - in[i][j] : in[i][j];
+    res[i] /= T(lprng.size() / res[i].size());
+  MFENCE();
+  }
+  return res;
+}
+
+// N.B. each pixel each bit prediction with PRNG blended stream.
 //      we're aiming p01next's PRNG blended meaning.
 //      this is to make hypothesis true-PRNG cannot run away from p01next
 //      hypothesis, this makes analogy to 2/3 prediction on saturated input
@@ -3050,216 +3195,31 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const
 #if defined(_OPENMP)
   for(int i = 1; i <= in0.size(); i ++) pnextcacher<T>(i, 1);
 #endif
-  SimpleVector<SimpleVector<T> > in;
-  in.entity.reserve(in0.size());
-  for(int i = 0; i < in0.size(); i ++) {
-    SimpleVector<T> work(in0[i].size() * bits);
-    for(int j = 0; j < in0[i].size(); j ++) {
-      T w(in0[i][j]);
-      for(int k = 0; k < bits; k ++) {
-        work[j * bits + k] = w;
-        w *= T(int(2));
-        const T ww(absfloor(w));
-        w -= ww;
-        w += ww / T(int(1) << bits);
-      }
-    }
-    in.entity.emplace_back(work);
-  }
-  if(_P_PRNG_ <= 1) {
-    SimpleVector<SimpleVector<T> > res(offsetHalf<T>(
-      pWholeMarkovM<T, nprogress>(in, bits, strloop) ));
-    for(int i = 0; i < res.size(); i ++)
-      res[i] = bitsG<T, true>(res[i], - bits);
-    return unOffsetHalf<T>(res);
-  }
-  SimpleVector<SimpleVector<T> > prng(in.size() + 1);
-  for(int j = 0; j < prng.size(); j ++) {
-    prng[j].resize(in[0].size() * _P_PRNG_);
-    for(int k = 0; k < prng[j].size(); k ++)
-#if defined(_ARCFOUR_)
-      prng[j][k] = arc4random() & 1 ? - T(int(1)) : T(int(1));
+#if _P_PRNG_ <= 1
+  MFENCE();
+  return unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(
+    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in0, bits), bits, strloop)),
+      - bits));
 #else
-      prng[j][k] = random() & 1 ? - T(int(1)) : T(int(1));
+  const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in0.size() + 1, in0[0].size() * _P_PRNG_));
+  MFENCE();
+  const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in0.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
+  MFENCE();
+  return applyPostPRNG<T>(cherryStat<T>(
+    unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(applyPostPRNG<T>(
+      pWholeMarkovCherry<T, nprogress>(offsetHalf<T>(applyPrepPRNG<T>(
+        unOffsetHalf<T>(bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(
+          unOffsetHalf<T>(in0), prng0)), bits)), prng1)), bits, strloop),
+            prng1, prng0[0].size() * bits)), - bits)), applyPrepPRNG<T>(
+              unOffsetHalf<T>(in0), prng0)), prng0, in0[0].size());
 #endif
-  }
-  SimpleVector<SimpleVector<T> > work(in.size());
-  for(int j = 0; j < in.size(); j ++) {
-    work[j].resize(in[0].size() * _P_PRNG_);
-    for(int k = 0; k < work[j].size(); k ++) work[j][k] = offsetHalf<T>(
-      prng[j][k] * unOffsetHalf<T>(in[j][k / _P_PRNG_]) );
-  }
-  SimpleVector<SimpleVector<T> > res(
-    pWholeMarkovM<T, nprogress>(work, bits, strloop) );
-  SimpleVector<SimpleVector<T> > out(res.size());
-  for(int i = 0; i < out.size(); i ++) {
-    out[i].resize(in[0].size());
-    out[i].O();
-    for(int j = 0; j < res[i].size(); j ++)
-      out[i][j / _P_PRNG_] += res[i][j] *
-        prng[i - out.size() + prng.size()][j];
-    out[i] = bitsG<T, true>(offsetHalf<T>(out[i]), - bits);
-  }
-  return unOffsetHalf<T>(out);
 }
 
-template <typename T, int nprogress> static inline SimpleVector<T> pPRNG(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+template <typename T, int nprogress>  SimpleVector<T> pPRNG(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   SimpleVector<SimpleVector<T> > p(pPRNGM<T, nprogress>(in, bits, strloop));
   return p[p.size() - 1];
 }
 
-// N.B. we make the first hypothesis as the stream is calculatable by *single*
-//      function as n-markov also which measureability-appendant stream can
-//      seep out the original stream from information amount reason.
-// N.B. layers:
-//       | function           | layer# | [wsp1] | data amount* | time*(***)   |
-//       +-----------------------------------------------------+--------------+
-//       | pPRNG                       | -1  | w | _P_PRNG_    | _P_PRNG_
-//       | pWholeMarkovM               | 0   | w | ~2          | ~2
-//       | pRS00 call for each bit     | 1   | w | bits        | bits
-//       | grow context                | 2   | w |             | O(L)
-//       | divide by program invariant | 3+  | s | +unit       | +O(GL)
-//       | burn invariant by p0next    | ++  | s | +unit       | +O(GL)
-//       |                             |     |   |             | +once(L^3)
-//       | makeProgramInvariant        | 4+  | p |             | +O(GL)
-//       | linearInvariant             | -   | - | -           |
-//       |  - QR decomposition         | 6+* | s | > 4!        | O(GL)
-//       |  - orthogonalization        | 8+* | p | > 4!        | O(4!)
-//       |  - solve                    | 10* | p | +> (4 * 4)  | +O(4^3)
-//       | T::operator *,/             | 11+ | 1 |             |
-//       | T::operator +,-             | 12+ | 1 |             |
-//       | T::bit operation            | 13+ | 1 |             |
-// *(++) | sumCNext                    | +0  | s |             |
-//       | sumCNext                    | +1  | s |             |
-//       | logCNext                    | +2  | s |             |
-//       | logCNext                    | +3  | s |             |
-//       | northPoleNext               | +4  | s |             |
-//       | invNext                     | +5  | s |             |
-//       | sumCNext                    | +6  | s |             |
-//       | pnext                       | +7  | s | +once(dft)  |
-//       | integrate-diff in taylorc   | +8  | p | +once(dft)  |
-//       | exp to shift   in taylorc   | +9  | p | +once(dft)  |
-//       | dft                         | +10 | p | +once(dft)  |
-//       | exp-log complex operation   | +11 | 1 | +once(taylor) |
-//       | T::operator *,/             | +12 | 1 |             |
-//       | T::operator +,-             | +13 | 1 |             |
-//       | T::bit operation            | +14 | 1 |             |
-// (***) time order ratio, L for input stream length, G for input vector size,
-//       stand from arithmatic operators. ind2varlen isn't considered.
-// N.B. we need O(L^2*G) calculation time whole.
-// N.B. rewrote 2025/08/30, last update 2025/10/17:
-// N.B. generally speaking, the raw input stream with high entropy predictor
-//      dislikes to predict in general meanings because {ok,ng,invariant}
-//      each 1/3 condition. however, there's at least 2 hole to the condition.
-//      they're (i) attach input stream as we can treat well (ii) learn large
-//      set of data stream and predict with internal of explicitly described
-//      numerical stream form. we select (i) condition also worked well for now.
-//      this is from the stream and predictor better tangled condition with
-//      good temperature. however, the tangle condition can slide to run away
-//      from some of the reason we don't know why but the tanglement on the
-//      calculation space structure - numerical series abstract structure
-//      slip. so the predictor condition is for now, not the ever or never.
-// N.B. the codes eliminated from this header the reason why:
-// (i)  difference, summation concerns they have the condition s.t.
-//      the noise of the prediction stream can spread entire of the result
-//      so we eliminated: PdeltaOnce, Ppersistent, Pprogression, (P0DFT) and so.
-//      also they're mostly equivalent to input timing skip concerns.
-//      this is because A_0 ... A_k B x_0 matrix described form.
-//      also patternized xor-filter have the timing related conditions.
-//      however, skip conditions are to avoid jammer things, so we eliminated
-//      from core predictors.
-//      this include input stream non-linear scaling (even in x-axis).
-//      also distant step predictions aren't fight with skip concerns.
-// (ii) non linear function transformations we target is only exp/log scale.
-//      this is because d^e/dx^e == dx condition and f^-1(f(x)) == x condition.
-//      cf. (arctan(logscale))-n times chain causes y=x into sigmoid-like graph.
-//      -&gt; we eliminated non linear function handling because we're trusting
-//      makeProgramInvariant a little stronger for output.
-// (iii)predict twice or more by one predictor often causes clear edge but the
-//      gulf things. this also includes {ok,ng,invariant}'s invariant condition
-//      retry.
-// (iv) ad-hoc layer implementations also inspired by numerical test isn't
-//      useful for generic predictor because it's only ad-hoc to specific
-//      numerical series. also after burner is.
-// (v)  we don't need LoEM unstable case implementation on input stream attached
-//      case because it's verbose.
-// (vi) sectional measureament addition/subtraction. they are only harmful
-//      reformation because of the accuracy and offset.
-// (vii)Lebesgue measureament condition prediction. they are only harmful
-//      because of some of the averaged in/output causes blurring, also
-//      the Lebesgue measureable condition can be included RiemannStieljes
-//      measureable condition in some hacks with non strict hypothesis such of
-//      axiom of choice.
-// N.B. something XXX result descripton
-// (00) there might exist non Lebesgue measureable condition discrete stream.
-//      this is: there's no unique function on the range but AFTER all the
-//      data is treated (observed), this condition never satisfied.
-//      so this is the which is the latter chase. either if original stream
-//      is something attached, this condition can be avoided well.
-// (01) the prediction fail is come from first continuity hypothesis
-//      satisfied or not. AFTER the whole stream is given context,
-//      we can avoid such of the conditions with certain error.
-// (02) (de)?compression concerns can jam out on N calculation matters.
-//      we cannot avoid this other than verifying after the phenomenon
-//      also having a verifiability of low of excluded middle based on
-//      our calculation based on our conscious uniqueness.
-// (03) might have once coded as obs. concerns. when we implement binary
-//      they means we select one of the #f causes the jammer can jam out
-//      our invariant condition. so if there's universal invariant,
-//      once jammer targets us, they slip to non universal ones.
-// (04) so the universal invariant condition needs to be hide from attacker
-//      the binary tree or method itself to continue their effects really
-//      grip on them. otherwise, we should use such a invariant from
-//      the things we really trust from bottom of our hearts but this needs
-//      a priori description on the stream however there exists the jammer
-//      for any of the predictor, the description seems unfavorable.
-// N.B. tips around jammer
-// (-1) any of the predictor they have a jammer to them.
-// (00) after of all, the dynamic jammer can be avoided if the predictor entropy
-//      exceeds jammers one, so some of the first short range, the predictor
-//      exceeds the jammer somehow.
-// (01) however, the predictor entropy can be counted by program binary size
-//      in some of the layer, so graphics predictor seems to have the quantity
-//      so. either, once algorithm is coded as exist, they have upper entropy
-//      size n bit-input, n bit-output, n^3 bit as a optimization result.
-//      instead of the fixation of code optimization, we use optimization result
-//      to get orthogonal to input stream condition or pivot to get high
-//      frequency result.
-// (02) the predictor vs. jammer made stream concludes the saturated input.
-//      also the condition is the which side bore first chase.
-//      if the saturated result we get, we should separate something on input.
-// (03) there can be 0 invariant chain, so they can be caused by move average
-//      they caused return to average works very well.
-//      this is because <x,a> == 0, <[x,x+],[a,0]+[0,a]> == 0 chain in rough.
-// (04) after some conversation with gemini around 2025/07, the jammers
-//      they have internal optimization calculation to output to saturate
-//      the stream intent condition or so also have the internal made intentions
-//      to jam out the stream.
-// N.B. there's plenty of the room to implement the predictor which is
-//      saturating F_2^4 #f, the bra, ket condition indirect access.
-//      either Riemann-measureable conditions' smaller than |dx| counting
-//      causes whole function reference.
-// N.B. things not implemented nor tested but abandoned.
-// (01) brute force change state/output functions on (de)?compressed stream.
-//      they are equivalent to p01next, p012next partially also we cannot
-//      test because of their size on the memory.
-//      the brute force condition isn't mean directly the things finding
-//      pseudo-patternized ones because of (de)compression condition they
-//      breaks LoEM causes some resonance on the stream.
-// (02) predictor which shirking many much of the continuous functions:
-//        this is with taking multiplication invariant on f,
-//        S f(x) dx = S det(J((1,g0,...)/(1,x0,...)) dx0 ...
-//        retaking their addition invariant as det(...) == 0, the given function
-//        g0 ... should fit them also they describes much of continuities.
-//        this can flatten N when our N is something infected.
-//        also this is the analogy {1,x,x^2,...} on p0next meaning.
-//      so the ongoing proceding machine learnings finds such a orthogonal
-//      egg functions from input streams without the hypotehsis on PDE
-//      structures. so we drop to implement them.
-// (03) untangle by DFT or Wavelet triple. this is because R^R untangle
-//      one by one causes Wavelet(Wavelet(Fourier+Discrete)+Discrete)+Discrete
-//      causes only a combination ordinal, we need Discrete part separation
-//      other than dft/mWavelet in fact. however, we drop this implementation.
 #define _SIMPLELIN_
 #endif
 

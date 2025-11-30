@@ -31,7 +31,7 @@ struct consdev *cn_tab = constab;
 #define M_ALLOC (32 * 1024 * 1024)
 #define assert (void)
 
-#define _P_PRNG_ 1
+#define _P_PRNG_ 5
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -189,7 +189,7 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(11);
+    SimpleVector<num_t> vbuf(1);
     vbuf.O();
     if(carry.size() != vbuf.size()) { carry.resize(vbuf.size() * 2 + 1); carry.O(); }
     int i;
@@ -224,11 +224,12 @@ EFI_STATUS calc() {
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
         pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
-      /* stub */
-      for(int i = 1; i < w2.size(); i ++) {
+      for(int i = 1; i < p.size() - 1; i ++) {
         tctr ++;
         num_t j(int(0));
-        /* stub */
+        for(int k = 0; k < p[i].size(); k ++)
+          j += p[i][k] * unOffsetHalf<num_t>(
+            b.res[i - (p.size() - 1) + b.res.size()][k]);
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
         const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
@@ -236,8 +237,11 @@ EFI_STATUS calc() {
         printf("%c%d: %d%c%d L %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100, per10000l / 100, '.', per10000l % 100);
       }
       ltctr ++;
+      const int i(p.size() - 2);
       num_t j(int(0));
-      /* stub */
+      for(int k = 0; k < p[i].size(); k ++)
+        j += p[i][k] * unOffsetHalf<num_t>(
+          b.res[i - (p.size() - 1) + b.res.size()][k]);
       if(j == num_t(int(0))) ltctr --;
       else if(num_t(int(0)) < j) lctr ++;
       b.t = 0;
