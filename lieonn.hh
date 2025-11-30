@@ -3046,7 +3046,7 @@ template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pGuaranteeM
   return res;
 }
 
-template <typename T> static inline SimpleVector<T> bitsSlide(const SimpleVector<T>& d, const int& b) {
+template <typename T>  SimpleVector<T> bitsSlide(const SimpleVector<T>& d, const int& b) {
   assert(0 < b);
   SimpleVector<T> res(d.size() * b);
   for(int j = 0; j < d.size(); j ++) {
@@ -3062,7 +3062,7 @@ template <typename T> static inline SimpleVector<T> bitsSlide(const SimpleVector
   return res;
 }
 
-template <typename T> static inline SimpleVector<SimpleVector<T> > bitsSlide(const SimpleVector<SimpleVector<T> >& d, const int& b) {
+template <typename T>  SimpleVector<SimpleVector<T> > bitsSlide(const SimpleVector<SimpleVector<T> >& d, const int& b) {
   SimpleVector<SimpleVector<T> > res(d);
   for(int i = 0; i < res.size(); i ++) res[i] = bitsSlide<T>(res[i], b);
   return res;
@@ -3081,17 +3081,6 @@ template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarko
       MFENCE();
   SimpleVector<SimpleVector<T> > p(unOffsetHalf<T>(pRS00<T, nprogress>(
     offsetHalf<T>(wp.first), strloop)) );
-      MFENCE();
-  for(int i0 = 0; i0 < p.size(); i0 ++)
-    for(int i = 0; i < p[i0].size() / bits; i ++) {
-      for(int j = 0; j < bits - 2; j ++) {
-        for(int k = 1; k <= 2; k ++)
-          p[i0][i * bits + j] += p[i0][i * bits + j + k] / T(int(1) << k);
-        p[i0][i * bits + j] /= T(int(3));
-      }
-      for(int j = bits - 2; j < bits; j ++)
-        p[i0][i * bits + j] = T(int(0));
-    }
       MFENCE();
   for(int i = 0; i < p.size(); i ++) p[i] *= wp.second;
       MFENCE();
@@ -3135,6 +3124,23 @@ template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarko
 #if !defined(_P_PRNG_)
 #define _P_PRNG_ 11
 #endif
+
+template <typename T>  SimpleVector<SimpleVector<T> > seepBits(const SimpleVector<SimpleVector<T> >& in, const int& bits) {
+      MFENCE();
+  SimpleVector<SimpleVector<T> > p(in);
+  for(int i0 = 0; i0 < p.size(); i0 ++)
+    for(int i = 0; i < p[i0].size() / bits; i ++) {
+      for(int j = 0; j < bits - 2; j ++) {
+        for(int k = 1; k <= 2; k ++)
+          p[i0][i * bits + j] += p[i0][i * bits + j + k] / T(int(1) << k);
+        p[i0][i * bits + j] /= T(int(3));
+      }
+      for(int j = bits - 2; j < bits; j ++)
+        p[i0][i * bits + j] = T(int(0));
+    }
+      MFENCE();
+  return p;
+}
 
  SimpleVector<SimpleVector<char> > preparePRNG(const int& len, const int& size) {
   MFENCE();
@@ -3197,20 +3203,20 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const
 #endif
 #if _P_PRNG_ <= 1
   MFENCE();
-  return unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(
-    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in0, bits), bits, strloop)),
-      - bits));
+  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
+    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in0, bits), bits, strloop),
+      bits)), - bits)), unOffsetHalf<T>(in0));
 #else
   const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in0.size() + 1, in0[0].size() * _P_PRNG_));
   MFENCE();
   const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in0.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
   MFENCE();
   return applyPostPRNG<T>(cherryStat<T>(
-    unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(applyPostPRNG<T>(
+    unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(applyPostPRNG<T>(
       pWholeMarkovCherry<T, nprogress>(offsetHalf<T>(applyPrepPRNG<T>(
         unOffsetHalf<T>(bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(
           unOffsetHalf<T>(in0), prng0)), bits)), prng1)), bits, strloop),
-            prng1, prng0[0].size() * bits)), - bits)), applyPrepPRNG<T>(
+            prng1, prng0[0].size() * bits), bits)), - bits)), applyPrepPRNG<T>(
               unOffsetHalf<T>(in0), prng0)), prng0, in0[0].size());
 #endif
 }
