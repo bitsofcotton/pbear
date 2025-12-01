@@ -2535,11 +2535,11 @@ template <typename T, T (*f)(const SimpleVector<T>&)>  T invNext(const SimpleVec
   const T zero(int(0));
   const T one(int(1));
   SimpleVector<T> ff(in);
-  for(int i = 0; i < in.size(); i ++) if(in[i] == zero) return in[in.size() - 1];
+  for(int i = 0; i < in.size(); i ++) if(in[i] == zero) return f(in);
   else ff[i] = one / in[i];
       MFENCE();
   const T pn(f(ff));
-  if(pn == zero) return in[in.size() - 1];
+  if(pn == zero) return f(in);
       MFENCE();
   return one / pn;
 }
@@ -2557,7 +2557,7 @@ template <typename T, T (*f)(const SimpleVector<T>&)>  T northPoleNext(const Sim
   const T& M(* npoleM);
   SimpleVector<T> ff(in);
   for(int i = 0; i < in.size(); i ++)
-    if(! isfinite(in[i]) || in[i] == zero) return in[in.size() - 1];
+    if(! isfinite(in[i]) || in[i] == zero) return f(in);
     else {
       ff[i] = atan(in[i]);
       // N.B. we avoid right hand side, it's harmless.
@@ -2566,13 +2566,12 @@ template <typename T, T (*f)(const SimpleVector<T>&)>  T northPoleNext(const Sim
     }
       MFENCE();
   T work(f(ff));
-  // if(! isfinite(work) || work == zero) return in[in.size() - 1];
-  if(! isfinite(work)) return in[in.size() - 1];
+  // if(! isfinite(work) || work == zero) return f(in);
+  if(! isfinite(work)) return f(in);
   // work = tan(max(- M, min(M, one / tan(max(- M, min(M, work))))));
   work = tan(max(- M, min(M, work)));
-  if(isfinite(work)) return work;
       MFENCE();
-  return in[in.size() - 1];
+  return isfinite(work) ? work : f(in);
 }
 
 // N.B. we can add some of the conditions on x_next := integrate^x f(x_now)
@@ -2597,14 +2596,14 @@ template <typename T, T (*f)(const SimpleVector<T>&)>  T logCNext(const SimpleVe
   const T zero(int(0));
   const T one(int(1));
   SimpleVector<T> ff(in);
-  if(ff[0] == zero) return in[in.size() - 1];
+  if(ff[0] == zero) return f(in);
   for(int i = 1; i < ff.size(); i ++)
-    if((ff[i] += ff[i - 1]) == zero) return in[in.size() - 1];
+    if((ff[i] += ff[i - 1]) == zero) return f(in);
       MFENCE();
   SimpleVector<T> gg(ff.size() - 1);
   gg.O();
   for(int i = 1; i < ff.size(); i ++)
-    if(! isfinite(gg[i - 1] = ff[i] / ff[i - 1] - one)) return in[in.size() - 1];
+    if(! isfinite(gg[i - 1] = ff[i] / ff[i - 1] - one)) return f(in);
       MFENCE();
   return f(gg) * ff[ff.size() - 1];
 }
@@ -3079,8 +3078,8 @@ template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarko
   pair<SimpleVector<SimpleVector<T> >, T> wp(normalizeS<T>(
     delta<SimpleVector<T> >(in) ));
       MFENCE();
-  SimpleVector<SimpleVector<T> > p(unOffsetHalf<T>(pRS00<T, nprogress>(
-    offsetHalf<T>(wp.first), strloop)) );
+  SimpleVector<SimpleVector<T> > p(pRS00<T, nprogress>(
+    offsetHalf<T>(wp.first), strloop) );
       MFENCE();
   for(int i = 0; i < p.size(); i ++) p[i] *= wp.second;
       MFENCE();
