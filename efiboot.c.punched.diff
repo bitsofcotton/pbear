@@ -1,42 +1,111 @@
-68c68
+59,60d58
+< int	 efi_device_path_depth(EFI_DEVICE_PATH *dp, int);
+< int	 efi_device_path_ncmp(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *, int);
+68d65
 < EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
----
-> // EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
-74a75
-> /*
-89c90
+75,171d71
+< EFI_STATUS
+< efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
+< {
+< 	extern char		*progname;
+< 	EFI_LOADED_IMAGE	*imgp;
+< 	EFI_DEVICE_PATH		*dp0 = NULL, *dp;
+< 	EFI_STATUS		 status;
+< 	EFI_PHYSICAL_ADDRESS	 stack;
+< 
+< 	ST = systab;
+< 	BS = ST->BootServices;
+< 	RS = ST->RuntimeServices;
+< 	IH = image;
+< 
 < 	/* disable reset by watchdog after 5 minutes */
----
-> 	// disable reset by watchdog after 5 minutes
-120c121
+< 	BS->SetWatchdogTimer(0, 0, 0, NULL);
+< 
+< 	efi_video_init();
+< 	efi_heap_init();
+< 
+< 	status = BS->HandleProtocol(image, &imgp_guid, (void **)&imgp);
+< 	if (status == EFI_SUCCESS)
+< 		status = BS->HandleProtocol(imgp->DeviceHandle, &devp_guid,
+< 		    (void **)&dp0);
+< 	if (status == EFI_SUCCESS) {
+< 		for (dp = dp0; !IsDevicePathEnd(dp);
+< 		    dp = NextDevicePathNode(dp)) {
+< 			if (DevicePathType(dp) == MEDIA_DEVICE_PATH &&
+< 			    (DevicePathSubType(dp) == MEDIA_HARDDRIVE_DP ||
+<  			    DevicePathSubType(dp) == MEDIA_CDROM_DP)) {
+< 				bios_bootdev =
+< 				    (DevicePathSubType(dp) == MEDIA_CDROM_DP)
+< 				    ? 0x1e0 : 0x80;
+< 				efi_bootdp = dp0;
+< 				break;
+< 			} else if (DevicePathType(dp) == MESSAGING_DEVICE_PATH&&
+< 			    DevicePathSubType(dp) == MSG_MAC_ADDR_DP) {
+< 				bios_bootdev = 0x0;
+< 				efi_bootdp = dp0;
+< 				break;
+< 			}
+< 		}
+< 	}
+< 
+< #ifdef __amd64__
 < 	/* allocate run_i386_start() on heap */
----
-> 	// allocate run_i386_start() on heap
-126,127c127,128
+< 	if ((run_i386 = alloc(run_i386_size)) == NULL)
+< 		panic("alloc() failed");
+< 	memcpy(run_i386, run_i386_start, run_i386_size);
+< #endif
+< 
 < 	/* can't use sa_cleanup since printf is used after sa_cleanup() */
 < 	/* sa_cleanup = efi_cleanup; */
----
-> 	// can't use sa_cleanup since printf is used after sa_cleanup()
-> 	// sa_cleanup = efi_cleanup;
-135,138c136,137
+< 
+< #ifdef __amd64__
+< 	progname = "BOOTX64";
+< #else
+< 	progname = "BOOTIA32";
+< #endif
+< 
 < 	/*
 < 	 * Move the stack before calling boot().  UEFI on some machines
 < 	 * locate the stack on our kernel load address.
 < 	 */
----
-> 	// Move the stack before calling boot().  UEFI on some machines
-> 	// locate the stack on our kernel load address.
-151c150
+< 	stack = heap + heapsiz;
+< #if defined(__amd64__)
+< 	asm("movq	%0, %%rsp;"
+< 	    "mov	%1, %%edi;"
+< 	    "call	boot;"
+< 	    :: "r"(stack - 32), "r"(bios_bootdev));
+< #else
+< 	asm("movl	%0, %%esp;"
+< 	    "movl	%1, (%%esp);"
+< 	    "call	boot;"
+< 	    :: "r"(stack - 32), "r"(bios_bootdev));
+< #endif
 < 	/* must not reach here */
----
-> 	// must not reach here
-153a153
-> */
-161c161
+< 	return (EFI_SUCCESS);
+< }
+< 
+< void
+< efi_cleanup(void)
+< {
+< 	int		 retry;
+< 	EFI_STATUS	 status;
+< 
 < 	/* retry once in case of failure */
----
-> 	// retry once in case of failure
-177,242d176
+< 	for (retry = 1; retry >= 0; retry--) {
+< 		efi_memprobe_internal();	/* sync the current map */
+< 		status = BS->ExitBootServices(IH, mmap_key);
+< 		if (status == EFI_SUCCESS)
+< 			break;
+< 		if (retry == 0)
+< 			panic("ExitBootServices failed (%d)", status);
+< 	}
+< }
+< 
+173,282d72
+<  * Disk
+<  ***********************************************************************/
+< struct disklist_lh efi_disklist;
+< 
 < void
 < efi_diskprobe(void)
 < {
@@ -103,25 +172,65 @@
 < 	free(handles, sz);
 < }
 < 
-349c283
+< /*
+<  * Determine the number of nodes up to, but not including, the first
+<  * node of the specified type.
+<  */
+< int
+< efi_device_path_depth(EFI_DEVICE_PATH *dp, int dptype)
+< {
+< 	int	i;
+< 
+< 	for (i = 0; !IsDevicePathEnd(dp); dp = NextDevicePathNode(dp), i++) {
+< 		if (DevicePathType(dp) == dptype)
+< 			return (i);
+< 	}
+< 
+< 	return (i);
+< }
+< 
+< int
+< efi_device_path_ncmp(EFI_DEVICE_PATH *dpa, EFI_DEVICE_PATH *dpb, int deptn)
+< {
+< 	int	 i, cmp;
+< 
+< 	for (i = 0; i < deptn; i++) {
+< 		if (IsDevicePathEnd(dpa) || IsDevicePathEnd(dpb))
+< 			return ((IsDevicePathEnd(dpa) && IsDevicePathEnd(dpb))
+< 			    ? 0 : (IsDevicePathEnd(dpa))? -1 : 1);
+< 		cmp = DevicePathNodeLength(dpa) - DevicePathNodeLength(dpb);
+< 		if (cmp)
+< 			return (cmp);
+< 		cmp = memcmp(dpa, dpb, DevicePathNodeLength(dpa));
+< 		if (cmp)
+< 			return (cmp);
+< 		dpa = NextDevicePathNode(dpa);
+< 		dpb = NextDevicePathNode(dpb);
+< 	}
+< 
+< 	return (0);
+< }
+< 
+< /***********************************************************************
+349c139
 < 	mm = alloc(siz);
 ---
 > 	mm = (EFI_MEMORY_DESCRIPTOR*)alloc(siz);
-688c622
+688c478
 < 		handles = alloc(sz);
 ---
 > 		handles = (EFI_HANDLE*)alloc(sz);
-710c644
+710c500
 < 			dpp = (EFI_DEV_PATH_PTR)dp;
 ---
 > 			dpp = *(EFI_DEV_PATH_PTR*)(void*)dp;
-758,759c692,693
+758,759c548,549
 < 		    serio->Mode->Timeout, serio->Mode->Parity,
 < 		    serio->Mode->DataBits, serio->Mode->StopBits);
 ---
 > 		    serio->Mode->Timeout, (EFI_PARITY_TYPE)serio->Mode->Parity,
 > 		    serio->Mode->DataBits, (EFI_STOP_BITS_TYPE)serio->Mode->StopBits);
-867,985d800
+867,985d656
 < void
 < efi_makebootargs(void)
 < {
@@ -241,28 +350,28 @@
 < 	addbootarg(BOOTARG_EFIINFO, sizeof(bios_efiinfo), &bios_efiinfo);
 < }
 < 
-998c813
+998c669
 < 	EFI_DEVICE_PATH *dp = (void *)data;
 ---
 > 	EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH*)(void *)data;
-1013c828
+1013c684
 < 	status = RS->GetVariable(L"ConOut", &global, NULL, &size, &data);
 ---
 > 	status = RS->GetVariable((CHAR16*)(void*)L"ConOut", &global, NULL, &size, &data);
-1015c830
+1015c686
 < 		for (dp = (void *)data; !IsDevicePathEnd(dp);
 ---
 > 		for (dp = (EFI_DEVICE_PATH*)(void *)data; !IsDevicePathEnd(dp);
-1047d861
+1047d717
 < 	addbootarg(BOOTARG_CONSDEV, sizeof(cd), &cd);
-1109,1110c923
+1109,1110c779
 < #ifdef IDLE_POWEROFF
 < CHAR16		*idle_name = L"IdlePoweroff";
 ---
 > CHAR16		*idle_name = (CHAR16*)(void*)L"IdlePoweroff";
-1158d970
+1158d826
 < #endif /* IDLE_POWEROFF */
-1177,1184d988
+1177,1184d844
 < 	if (cmd.argc >= 2) {
 < 		mode = strtol(cmd.argv[1], NULL, 10);
 < 		if (0 <= mode && mode < nitems(efi_video) &&
@@ -271,9 +380,9 @@
 < 			efi_video_reset();
 < 		}
 < 	} else {
-1193d996
+1193d852
 < 	}
-1219,1228d1021
+1219,1228d877
 < 	if (cmd.argc >= 2) {
 < 		mode = strtol(cmd.argv[1], NULL, 10);
 < 		if (0 <= mode && mode < gop->Mode->MaxMode) {
@@ -284,11 +393,11 @@
 < 			}
 < 		}
 < 	} else {
-1239d1031
+1239d887
 < 	}
-1245d1036
+1245d892
 < #ifdef IDLE_POWEROFF
-1249,1255d1039
+1249,1255d895
 < 	if (cmd.argc >= 2) {
 < 		int secs;
 < 
@@ -296,15 +405,15 @@
 < 		if (0 <= secs && secs < UINT16_MAX)
 < 			set_idle_timeout(secs);
 < 	} else {
-1258d1041
+1258d897
 < 	}
-1261d1043
+1261d899
 < #endif /* IDLE_POWEROFF */
-1272c1054
+1272c910
 < 	status = RS->GetVariable(L"OsIndicationsSupported", &global, NULL,
 ---
 > 	status = RS->GetVariable((CHAR16*)(void*)L"OsIndicationsSupported", &global, NULL,
-1288c1070
+1288c926
 < 	status = RS->SetVariable(L"OsIndications", &global, osind_attrs,
 ---
 > 	status = RS->SetVariable((CHAR16*)(void*)L"OsIndications", &global, osind_attrs,

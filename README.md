@@ -19,16 +19,23 @@ If the binary is correctly compiled and wrote, we can boot them from amd64 machi
 
 So we *MUST TRUST* the hardware we have on first hypothesis even in this case.
 
-Hint: some of the modern CPUs have rumors around some infection-like behaviour even before shipment.
-
 # Little Tips (3)
 Talk with gemini concludes we should test lieonn.hh with RP2040 or so the condition with firmware full open sourced implementation with some microSD test on SPI mode with logic gates also check byte to byte the host machine says and microSD hex logic dump says if we're doubting first base system and compilation.
 
 This excludes whole compilation and running and showing the result paranoia into SD card reliability and RP2040 also connected LED output.
+
+However, if we're in paranoia enough, the USB mass storage datastream transfer also have some matters if the whole codebase is open to attackers also if our machines' low layer started infections.
 
 # Little Tips (4)
 strip -s can size down BOOTX64.EFI size into 120Ki octets or better smaller on this implementation.
 
 However, with checking by eyes the binary bit to bit, if the bitrate is the 1 bit per second, we should take around 12 days without rest by only a single person.
 We're doubting this can be done by no error by humans or not, so we should size down more.
+
+# Little Tips (5)
+Whether or not we're doubting our computer physical machines, we should check the result by LoEM and continuity on ourselves, so the matter is the amount of costs.
+
+Only to check the result is enough reliable or not, we should calculate ourselve by hands with paper with physical separated environment will guarantee the most LoEM and continuity also the flow can be easily checked by hands because we believe it's macro scale existence.
+
+However, to calculate repeatedly or to apply large amount of the data streams, we should use the computers, in this case, the calculation speed also matters.
 

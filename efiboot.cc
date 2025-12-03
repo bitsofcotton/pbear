@@ -233,13 +233,6 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
-/*
-      SimpleVector<SimpleVector<num_t> > p(
-        pPRNGM<num_t, 0>(offsetHalf<num_t>(delta<SimpleVector<num_t> >(b.res)),
-          8, string("") ));
-      for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-      p = cherryStat<num_t>(p, b.res);
-*/
       SimpleVector<SimpleVector<num_t> > p(
         pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
       for(int i = 1; i < p.size() - 1; i ++) {

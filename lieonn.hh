@@ -1076,8 +1076,7 @@ template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U>
 
 template <typename T, typename W, int bits, typename U>  SimpleFloat<T,W,bits,U> pow(const SimpleFloat<T,W,bits,U>& src, const SimpleFloat<T,W,bits,U>& dst) {
   if(! dst) {
-    if(! src)
-      return T(int(0)) / T(int(0));
+    if(! src) assert(false);
     return dst.one();
   }
   return exp(log(src) * dst);
@@ -2864,11 +2863,6 @@ template <typename T>  SimpleVector<SimpleVector<T> > bitsSlide(const SimpleVect
   SimpleVector<SimpleVector<T> > res(d);
   for(int i = 0; i < res.size(); i ++) res[i] = bitsSlide<T>(res[i], b);
   return res;
-}
-
-template <typename T, int nprogress>  SimpleVector<T> pGuarantee(const SimpleVector<SimpleVector<T> >& in, const string& strloop) {
-  SimpleVector<SimpleVector<T> > res(pGuaranteeM<T, nprogress>(in, strloop));
-  return res[res.size() - 1];
 }
 
 // N.B. add whole context length markov feeding.
