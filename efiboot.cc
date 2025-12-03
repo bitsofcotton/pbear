@@ -7,18 +7,25 @@ __dead void
 panic(const char *fmt, ...)
 {
         va_list ap;
-        static int paniced;
-
-        if (!paniced) {
-                paniced = 1;
-        }
-
         va_start(ap, fmt);
         vprintf(fmt, ap);
         printf("\n");
         va_end(ap);
         _rtt();
         /*NOTREACHED*/
+}
+void assert(const uint64_t f) {
+  if(! f) {
+    uint64_t* stack;
+    __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
+    printf("assertion failed\n");
+    printf("f: %x\n", (size_t)(void*)assert);
+    for(int i = 0; i < 16; i ++)
+      printf("s: %x\n", stack[i]);
+    for(; efi_cons_getc(0) != ' ';);
+    _rtt();
+  }
+  return;
 }
 struct consdev constab[] = {
         { efi_cons_probe, efi_cons_init, efi_cons_getc, efi_cons_putc },
@@ -29,9 +36,7 @@ struct consdev *cn_tab = constab;
 }
 
 #define M_ALLOC (32 * 1024 * 1024)
-#define assert (void)
-
-#define _P_PRNG_ 5
+#define _P_PRNG_ 3
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -87,7 +92,7 @@ extern "C" {
   }
 }
 
-static inline char n2byte(const num_t c) {
+char n2byte(const num_t c) {
   return max(char(0), min(char(255), char(int(c * num_t(int(255)) )) ));
 }
 
@@ -132,7 +137,13 @@ EFI_STATUS calc() {
   int m('r');
   idFeeder<SimpleVector<num_t> > b;
   SimpleVector<num_t> carry;
-  const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi())));
+  sf_qpi = (myfloat*)0;
+  sf_ea  = (vector<myfloat>*)0;
+  sf_iea = (vector<myfloat>*)0;
+  bm_sqe = (myfloat*)0;
+  bm_denom = (myfloat*)0;
+  pncr_cp = (vector<vector<SimpleVector<myfloat> > >*)0;
+  const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
   printf("mem usage temporal efficiency nil: %d, %d\n", bmsqpi.m, bmsqpi.e);
   npoleM = SimpleAllocator<num_t>().allocate(1);
   ::new ((void*)npoleM) num_t();
@@ -189,7 +200,7 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(1);
+    SimpleVector<num_t> vbuf(3);
     vbuf.O();
     if(carry.size() != vbuf.size()) { carry.resize(vbuf.size() * 2 + 1); carry.O(); }
     int i;
@@ -222,14 +233,20 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
+/*
+      SimpleVector<SimpleVector<num_t> > p(
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(delta<SimpleVector<num_t> >(b.res)),
+          8, string("") ));
+      for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+      p = cherryStat<num_t>(p, b.res);
+*/
       SimpleVector<SimpleVector<num_t> > p(
         pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
       for(int i = 1; i < p.size() - 1; i ++) {
         tctr ++;
         num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
-          j += p[i][k] * unOffsetHalf<num_t>(
-            b.res[i - (p.size() - 1) + b.res.size()][k]);
+          j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
         const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
@@ -240,8 +257,7 @@ EFI_STATUS calc() {
       const int i(p.size() - 2);
       num_t j(int(0));
       for(int k = 0; k < p[i].size(); k ++)
-        j += p[i][k] * unOffsetHalf<num_t>(
-          b.res[i - (p.size() - 1) + b.res.size()][k]);
+        j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
       if(j == num_t(int(0))) ltctr --;
       else if(num_t(int(0)) < j) lctr ++;
       b.t = 0;

@@ -76,16 +76,16 @@ public:
   U second;
 };
 
-template <typename T, typename U> static inline pair<T, U> make_pair(const T& f, const U& s) {
+template <typename T, typename U> pair<T, U> make_pair(const T& f, const U& s) {
   pair<T, U> res;
   res.first = f;
   res.second = s;
   return res;
 }
 
-template <typename T> static inline T abs(const T& x) { return x < T(int(0)) ? - x : x; }
+template <typename T> T abs(const T& x) { return x < T(int(0)) ? - x : x; }
 
-template <typename T> static inline void swap(T& x, T& y) {
+template <typename T> void swap(T& x, T& y) {
   const T xx(y);
   x = y; y = xx;
   return;
@@ -100,14 +100,14 @@ public:
 };
 
 // stub:
-static inline string to_string(const int& x) { return string(); }
-static inline string to_string(const size_t& x) { return string(); }
+string to_string(const int& x) { return string(); }
+string to_string(const size_t& x) { return string(); }
 
 // N.B. thanks to musl-1.2.3/src/prng/rand.c
+unsigned long long prng_seed(1234);
 inline int random() {
-  static unsigned long long seed(1234);
-  seed = 6364136223846793005ULL * seed + 1;
-  return int(seed >> 33);
+  prng_seed = 6364136223846793005ULL * prng_seed + 1;
+  return int(prng_seed >> 33);
 }
 
 #define _SIMPLE_VECTOR_
