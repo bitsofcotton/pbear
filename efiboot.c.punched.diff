@@ -1,9 +1,19 @@
-59,60d58
+43,44d42
+< #define EFI_OS_INDICATIONS_BOOT_TO_FW_UI	1ULL
+< 
+49d46
+< EFI_DEVICE_PATH		*efi_bootdp = NULL;
+59,60d55
 < int	 efi_device_path_depth(EFI_DEVICE_PATH *dp, int);
 < int	 efi_device_path_ncmp(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *, int);
-68d65
+68d62
 < EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
-75,171d71
+70,171d63
+< void (*run_i386)(u_long, u_long, int, int, int, int, int, int, int, int)
+<     __attribute__((noreturn));
+< 
+< extern int bios_bootdev;
+< 
 < EFI_STATUS
 < efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab)
 < {
@@ -101,7 +111,7 @@
 < 	}
 < }
 < 
-173,282d72
+173,282d64
 <  * Disk
 <  ***********************************************************************/
 < struct disklist_lh efi_disklist;
@@ -212,26 +222,25 @@
 < }
 < 
 < /***********************************************************************
-349c139
+349c131
 < 	mm = alloc(siz);
 ---
 > 	mm = (EFI_MEMORY_DESCRIPTOR*)alloc(siz);
-688c478
+688c470
 < 		handles = alloc(sz);
 ---
 > 		handles = (EFI_HANDLE*)alloc(sz);
-710c500
+710c492
 < 			dpp = (EFI_DEV_PATH_PTR)dp;
 ---
 > 			dpp = *(EFI_DEV_PATH_PTR*)(void*)dp;
-758,759c548,549
+758,759c540,541
 < 		    serio->Mode->Timeout, serio->Mode->Parity,
 < 		    serio->Mode->DataBits, serio->Mode->StopBits);
 ---
 > 		    serio->Mode->Timeout, (EFI_PARITY_TYPE)serio->Mode->Parity,
 > 		    serio->Mode->DataBits, (EFI_STOP_BITS_TYPE)serio->Mode->StopBits);
-867,985d656
-< void
+868,1050d649
 < efi_makebootargs(void)
 < {
 < 	int			 i;
@@ -350,28 +359,140 @@
 < 	addbootarg(BOOTARG_EFIINFO, sizeof(bios_efiinfo), &bios_efiinfo);
 < }
 < 
-998c669
+< /* Vendor device path used to indicate the mmio UART on AMD SoCs. */
+< #define AMDSOC_DEVPATH \
+< 	{ 0xe76fd4e9, 0x0a30, 0x4ca9, \
+< 	    { 0x95, 0x40, 0xd7, 0x99, 0x53, 0x4c, 0xc4, 0xff } }
+< 
+< void
+< efi_setconsdev(void)
+< {
+< 	bios_consdev_t cd;
+< 	EFI_STATUS status;
+< 	UINT8 data[128];
+< 	UINTN size = sizeof(data);
 < 	EFI_DEVICE_PATH *dp = (void *)data;
----
-> 	EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH*)(void *)data;
-1013c684
+< 	VENDOR_DEVICE_PATH *vdp;
+< 	UART_DEVICE_PATH *udp;
+< 	EFI_GUID global = EFI_GLOBAL_VARIABLE;
+< 	EFI_GUID amdsoc = AMDSOC_DEVPATH;
+< 
+< 	memset(&cd, 0, sizeof(cd));
+< 	cd.consdev = cn_tab->cn_dev;
+< 	cd.conspeed = com_speed;
+< 	cd.consaddr = com_addr;
+< 
+< 	/*
+< 	 * If the ConOut variable indicates we're using a serial
+< 	 * console, use it to determine the baud rate.
+< 	 */
 < 	status = RS->GetVariable(L"ConOut", &global, NULL, &size, &data);
----
-> 	status = RS->GetVariable((CHAR16*)(void*)L"ConOut", &global, NULL, &size, &data);
-1015c686
+< 	if (status == EFI_SUCCESS) {
 < 		for (dp = (void *)data; !IsDevicePathEnd(dp);
----
-> 		for (dp = (EFI_DEVICE_PATH*)(void *)data; !IsDevicePathEnd(dp);
-1047d717
+< 		     dp = NextDevicePathNode(dp)) {
+< 			/*
+< 			 * AMD Ryzen Embedded V1000 SoCs integrate a
+< 			 * Synopsys DesignWare UART that is not
+< 			 * compatible with the traditional 8250 UART
+< 			 * found on the IBM PC.  Pass the magic
+< 			 * parameters to the kernel to make this UART
+< 			 * work.
+< 			 */
+< 			if (DevicePathType(dp) == HARDWARE_DEVICE_PATH &&
+< 			    DevicePathSubType(dp) == HW_VENDOR_DP) {
+< 				vdp = (VENDOR_DEVICE_PATH *)dp;
+< 				if (efi_guidcmp(&vdp->Guid, &amdsoc) == 0) {
+< 					cd.consdev = makedev(8, 4);
+< 					cd.consaddr = *(uint64_t *)(vdp + 1);
+< 					cd.consfreq = 48000000;
+< 					cd.flags = BCD_MMIO;
+< 					cd.reg_width = 4;
+< 					cd.reg_shift = 2;
+< 				}
+< 			}
+< 
+< 			if (DevicePathType(dp) == MESSAGING_DEVICE_PATH &&
+< 			    DevicePathSubType(dp) == MSG_UART_DP) {
+< 				udp = (UART_DEVICE_PATH *)dp;
+< 				if (cd.conspeed == -1)
+< 					cd.conspeed = udp->BaudRate;
+< 			}
+< 		}
+< 	}
+< 
 < 	addbootarg(BOOTARG_CONSDEV, sizeof(cd), &cd);
-1109,1110c779
+< }
+< 
+< void
+1109,1299d707
 < #ifdef IDLE_POWEROFF
 < CHAR16		*idle_name = L"IdlePoweroff";
----
-> CHAR16		*idle_name = (CHAR16*)(void*)L"IdlePoweroff";
-1158d826
+< EFI_STATUS	 idle_status;
+< /* randomly generated f948e8a9-0570-4338-ad10-29f4cf12849d */
+< EFI_GUID	 openbsd_guid = { 0xf948e8a9, 0x0570, 0x4338,
+<     { 0xad, 0x10, 0x29, 0xf4, 0xcf, 0x12, 0x84, 0x9d } };
+< /* Non-Volatile, Boot Service Access, Runtime Service Access */
+< UINT32		 idle_attrs = 0x1 | 0x2 | 0x4;
+< UINT16		 idle_secs;
+< UINTN		 idle_sz = sizeof(idle_secs);
+< 
+< int
+< get_idle_timeout(void)
+< {
+< 	idle_status = RS->GetVariable(idle_name, &openbsd_guid, NULL,
+< 	    &idle_sz, &idle_secs);
+< 	if (idle_status != EFI_SUCCESS) {
+< 		if (idle_status != EFI_NOT_FOUND) {
+< 			printf("%s: %d\n", __func__, idle_status);
+< 			return 1;
+< 		}
+< 		return -1;
+< 	}
+< 	return 0;
+< }
+< 
+< int
+< set_idle_timeout(int secs)
+< {
+< 	idle_secs = secs;
+< 	idle_sz = idle_secs > 0 ? sizeof(idle_secs) : 0;
+< 	idle_status = RS->SetVariable(idle_name, &openbsd_guid, idle_attrs,
+< 	    idle_sz, &idle_secs);
+< 	if (idle_status != EFI_SUCCESS) {
+< 		printf("%s: %d\n", __func__, idle_status);
+< 		return -1;
+< 	}
+< 	return 0;
+< }
+< 
+< /* see lib/libsa/softraid.c sr_crypto_passphrase_decrypt() */
+< void
+< idle_poweroff(void)
+< {
+< 	if (get_idle_timeout() == 0 && sleep(idle_secs) == 0) {
+< 		printf("\nno input after %us, powering off...\n", idle_secs);
+< 		Xpoweroff_efi();
+< 	}
+< }
 < #endif /* IDLE_POWEROFF */
-1177,1184d844
+< 
+< /***********************************************************************
+<  * Commands
+<  ***********************************************************************/
+< int
+< Xexit_efi(void)
+< {
+< 	BS->Exit(IH, 0, 0, NULL);
+< 	for (;;)
+< 		continue;
+< 	return (0);
+< }
+< 
+< int
+< Xvideo_efi(void)
+< {
+< 	int	 i, mode = -1;
+< 
 < 	if (cmd.argc >= 2) {
 < 		mode = strtol(cmd.argv[1], NULL, 10);
 < 		if (0 <= mode && mode < nitems(efi_video) &&
@@ -380,9 +501,40 @@
 < 			efi_video_reset();
 < 		}
 < 	} else {
-1193d852
+< 		for (i = 0; i < nitems(efi_video) &&
+< 		    i < conout->Mode->MaxMode; i++) {
+< 			if (efi_video[i].cols > 0)
+< 				printf("Mode %d: %d x %d\n", i,
+< 				    efi_video[i].cols,
+< 				    efi_video[i].rows);
+< 		}
+< 		printf("\n");
 < 	}
-1219,1228d877
+< 	printf("Current Mode = %d\n", conout->Mode->Mode);
+< 
+< 	return (0);
+< }
+< 
+< int
+< Xpoweroff_efi(void)
+< {
+< 	RS->ResetSystem(EfiResetShutdown, EFI_SUCCESS, 0, NULL);
+< 	return (0);
+< }
+< 
+< int
+< Xgop_efi(void)
+< {
+< 	EFI_STATUS	 status;
+< 	int		 i, mode = -1;
+< 	UINTN		 sz;
+< 	EFI_GRAPHICS_OUTPUT_MODE_INFORMATION
+< 			*gopi;
+< 
+< 	if (gop == NULL) {
+< 		printf("No GOP found\n");
+< 		return (0);
+< 	}
 < 	if (cmd.argc >= 2) {
 < 		mode = strtol(cmd.argv[1], NULL, 10);
 < 		if (0 <= mode && mode < gop->Mode->MaxMode) {
@@ -393,11 +545,26 @@
 < 			}
 < 		}
 < 	} else {
-1239d887
+< 		for (i = 0; i < gop->Mode->MaxMode; i++) {
+< 			status = gop->QueryMode(gop, i, &sz, &gopi);
+< 			if (EFI_ERROR(status))
+< 				continue;
+< 			printf("Mode %d: %d x %d (stride = %d)\n", i,
+< 			    gopi->HorizontalResolution,
+< 			    gopi->VerticalResolution,
+< 			    gopi->PixelsPerScanLine);
+< 		}
+< 		printf("\n");
 < 	}
-1245d892
+< 	printf("Current Mode = %d\n", gop->Mode->Mode);
+< 
+< 	return (0);
+< }
+< 
 < #ifdef IDLE_POWEROFF
-1249,1255d895
+< int
+< Xidle_efi(void)
+< {
 < 	if (cmd.argc >= 2) {
 < 		int secs;
 < 
@@ -405,15 +572,47 @@
 < 		if (0 <= secs && secs < UINT16_MAX)
 < 			set_idle_timeout(secs);
 < 	} else {
-1258d897
+< 		if (get_idle_timeout() == 0)
+< 			printf("Timeout = %us\n", idle_secs);
 < 	}
-1261d899
+< 	return 0;
+< }
 < #endif /* IDLE_POWEROFF */
-1272c910
+< 
+< int
+< Xfwsetup_efi(void)
+< {
+< 	UINT64 osind;
+< 	UINTN osind_size = sizeof(osind);
+< 	UINT32 osind_attrs = 0x1 | 0x2 | 0x4;
+< 	EFI_GUID global = EFI_GLOBAL_VARIABLE;
+< 	EFI_STATUS status;
+< 
 < 	status = RS->GetVariable(L"OsIndicationsSupported", &global, NULL,
----
-> 	status = RS->GetVariable((CHAR16*)(void*)L"OsIndicationsSupported", &global, NULL,
-1288c926
+< 	    &osind_size, &osind);
+< 	if (status == EFI_NOT_FOUND) {
+< 		printf("not supported on this machine.\n");
+< 		return -1;
+< 	} else if (status != EFI_SUCCESS) {
+< 		printf("%s: %d\n", __func__, status);
+< 		return -1;
+< 	}
+< 
+< 	if ((osind & EFI_OS_INDICATIONS_BOOT_TO_FW_UI) == 0) {
+< 		printf("not supported on this machine.\n");
+< 		return -1;
+< 	}
+< 
+< 	osind = EFI_OS_INDICATIONS_BOOT_TO_FW_UI;
 < 	status = RS->SetVariable(L"OsIndications", &global, osind_attrs,
----
-> 	status = RS->SetVariable((CHAR16*)(void*)L"OsIndications", &global, osind_attrs,
+< 	    sizeof(osind), &osind);
+< 	if (status != EFI_SUCCESS) {
+< 		printf("%s: %d\n", __func__, status);
+< 		return -1;
+< 	}
+< 
+< 	RS->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
+< 	for (;;)
+< 		continue;
+< 	return 0;
+< }

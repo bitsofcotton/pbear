@@ -42,7 +42,7 @@ struct consdev *cn_tab = constab;
 #include "lieonn.hh"
 typedef myfloat num_t;
 
-const int pdata[] = {
+const long long pdata[] = {
 #include "pdata.h"
 };
 #include "cg.h"
@@ -153,9 +153,29 @@ EFI_STATUS calc() {
  mode:
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h | g for cg.h)\n");
   while(true)
-    switch(m = efi_cons_getc(0)) { case 'g': case 'n': case 'r': case'k': case'd': goto bbreak; }
+    switch(m = efi_cons_getc(0)) { case 'c': case 'g': case 'n': case 'r': case'k': case'd': goto bbreak; }
  bbreak:
-  if(m == 'g') {
+  if(m == 'c') {
+    for(int i = 0; i < sizeof(pdata) / sizeof(unsigned long long) / 3 / 6; i ++) {
+      SimpleVector<num_t> v(6);
+      v.O();
+      for(int j = 0; j < 6; j ++) {
+        v[j].m = pdata[i * 3 * 6 + j * 3] << 32;
+        v[j].e = pdata[i * 3 * 6 + j * 3 + 1];
+        v[j].s = pdata[i * 3 * 6 + j * 3 + 2];
+         printf("%x, %x, %x\n", v[j].m >> 32, v[j].e, v[j].s);
+      }
+      for(int j = 0; j < 3; j ++) v[j] += v[j + 3];
+      num_t flag(int(0));
+      for(int j = 0; j < 3; j ++) flag += v[j] * v[j + 3];
+      tctr ++;
+      if(flag == num_t(int(0))) tctr --;
+      else if(num_t(int(0)) < flag) ctr ++;
+      const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
+      printf("%c: %d%c%d\n\0", m, per10000 / 100, '.', per10000 % 100);
+    }
+    goto bbbreak;
+  } else if(m == 'g') {
     pncr_cp->resize(cg_n + 1);
     for(int i = 1; i <= cg_n; i ++) {
       (*pncr_cp)[i].resize(2);
@@ -233,13 +253,20 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
+      /* intentionally blank */
       SimpleVector<SimpleVector<num_t> > p(
         pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
+      SimpleVector<num_t> pj(p.size() - 1);
+      num_t sign(int(0));
+      pj.O();
       for(int i = 1; i < p.size() - 1; i ++) {
-        tctr ++;
-        num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
-          j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
+          pj[i] += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
+        sign += pj[i];
+      }
+      for(int i = 1; i < pj.size(); i ++) {
+        tctr ++;
+        const num_t j(pj[i] * sign);
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
         const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
@@ -248,9 +275,7 @@ EFI_STATUS calc() {
       }
       ltctr ++;
       const int i(p.size() - 2);
-      num_t j(int(0));
-      for(int k = 0; k < p[i].size(); k ++)
-        j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
+      const num_t j(pj[i] * sign);
       if(j == num_t(int(0))) ltctr --;
       else if(num_t(int(0)) < j) lctr ++;
       b.t = 0;

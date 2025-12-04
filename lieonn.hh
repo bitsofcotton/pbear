@@ -1741,19 +1741,9 @@ public:
     return;
   }
   myfloat      epsilon() const {
-#if defined(_PERSISTENT_) && ! defined(_FLOAT_BITS_)
-    // N.B. conservative.
-    const myfloat eps(sqrt(myfloat(int(1)) >> myint((sizeof(size_t) * 16) - 1)));
-    // static const myfloat eps(myfloat(int(1)) >> myint((sizeof(size_t) * 16) - 1));
-#elif defined(_FLOAT_BITS_)
     // N.B. conservative.
     const myfloat eps(sqrt(myfloat(int(1)) >> myint(_FLOAT_BITS_ - 1)));
     // static const myfloat eps(myfloat(int(1)) >> myint(_FLOAT_BITS_ - 1));
-#else
-    // N.B. conservative.
-    const myfloat eps(sqrt(std::numeric_limits<myfloat>::epsilon()));
-    // static const myfloat eps(std::numeric_limits<myfloat>::epsilon());
-#endif
     return eps;
   }
   // this isn't better idea for faster calculations.

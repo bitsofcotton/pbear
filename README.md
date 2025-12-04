@@ -33,9 +33,13 @@ However, with checking by eyes the binary bit to bit, if the bitrate is the 1 bi
 We're doubting this can be done by no error by humans or not, so we should size down more.
 
 # Little Tips (5)
-Whether or not we're doubting our computer physical machines, we should check the result by LoEM and continuity on ourselves, so the matter is the amount of costs.
+Whether or not we're doubting our computer physical machines, we should check the result by LoEM and continuity on ourselves, so the matter is the amount of the costs.
 
 Only to check the result is enough reliable or not, we should calculate ourselve by hands with paper with physical separated environment will guarantee the most LoEM and continuity also the flow can be easily checked by hands because we believe it's macro scale existence.
 
 However, to calculate repeatedly or to apply large amount of the data streams, we should use the computers, in this case, the calculation speed also matters.
+
+# Closed
+Closed with embryonic intentionally. We should check by hand using single functional but enough audited calculator to check our code works or not in strictly.
+Otherwise, since I'm paranoia, I cannot trust them. (even doing so, there's some paranoia around middle calculation paper exchanged by some of the actor or not.)
 
