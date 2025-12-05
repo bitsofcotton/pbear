@@ -246,7 +246,8 @@ EFI_STATUS calc() {
       for(int i = 1; i < p.size() - 1; i ++) {
         num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
-          j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
+          // N.B. cherryStat returns sign aligned ones.
+          j += p[i][k] * abs(b.res[i - (p.size() - 1) + b.res.size()][k]);
         tctr ++;
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
