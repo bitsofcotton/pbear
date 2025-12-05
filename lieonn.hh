@@ -2981,35 +2981,29 @@ template <typename T>  SimpleVector<SimpleVector<T> > applyPostPRNG(const Simple
 //      however, if the original raw stream have whole vector context each pixel
 //      structure have better structure than PRNGs, it's better bet with the
 //      condition after prediction shrinking.
-template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const SimpleVector<SimpleVector<T> >& in0, const int& bits, const string& strloop) {
+template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
   assert(0 < bits);
 #if defined(_OPENMP)
-  for(int i = 1; i <= in0.size(); i ++) pnextcacher<T>(i, 1);
+  for(int i = 1; i <= in.size(); i ++) pnextcacher<T>(i, 1);
 #endif
-  SimpleVector<SimpleVector<T> > in(delta<SimpleVector<T> >(in0));
-  for(int i = 0; i < in.size(); i ++) in[i] /= T(int(2));
-  in = offsetHalf<T>(in);
 #if _P_PRNG_ <= 1
   MFENCE();
-  SimpleVector<SimpleVector<T> > p(
-    cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
-      pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits), bits, strloop),
-        bits)), - bits)), unOffsetHalf<T>(in)) );
+  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
+    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits), bits, strloop),
+      bits)), - bits)), unOffsetHalf<T>(in));
 #else
   const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in.size() + 1, in[0].size() * _P_PRNG_));
   MFENCE();
   const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
   MFENCE();
-  SimpleVector<SimpleVector<T> > p(applyPostPRNG<T>(cherryStat<T>(
+  return applyPostPRNG<T>(cherryStat<T>(
     unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(applyPostPRNG<T>(
       pWholeMarkovCherry<T, nprogress>(offsetHalf<T>(applyPrepPRNG<T>(
         unOffsetHalf<T>(bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(
           unOffsetHalf<T>(in), prng0)), bits)), prng1)), bits, strloop),
             prng1, prng0[0].size() * bits), bits)), - bits)), applyPrepPRNG<T>(
-              unOffsetHalf<T>(in), prng0)), prng0, in[0].size()) );
+              unOffsetHalf<T>(in), prng0)), prng0, in[0].size());
 #endif
-  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-  return cherryStat<T>(p, unOffsetHalf<T>(in0));
 }
 
 template <typename T, int nprogress>  SimpleVector<T> pPRNG(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
