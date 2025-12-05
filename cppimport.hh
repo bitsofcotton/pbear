@@ -104,8 +104,8 @@ string to_string(const int& x) { return string(); }
 string to_string(const size_t& x) { return string(); }
 
 // N.B. thanks to musl-1.2.3/src/prng/rand.c
-unsigned long long prng_seed(1234);
 inline int random() {
+  static unsigned long long prng_seed(1234);
   prng_seed = 6364136223846793005ULL * prng_seed + 1;
   return int(prng_seed >> 33);
 }

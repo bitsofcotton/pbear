@@ -698,11 +698,11 @@ private:
     typedef int64_t  myint;
     typedef SimpleFloat<myuint, DUInt<uint64_t, 64>, 64, myint> myfloat;
 
-myfloat* sf_qpi;
 template <typename T, typename W, int bits, typename U> const SimpleFloat<T,W,bits,U>& SimpleFloat<T,W,bits,U>::quatpi() const {
+  static SimpleFloat<T,W,bits,U>* sf_qpi(0);
   if(! sf_qpi) {
-    sf_qpi = SimpleAllocator<myfloat>().allocate(1);
-    ::new ((void*)sf_qpi) myfloat();
+    sf_qpi = SimpleAllocator<SimpleFloat<T,W,bits,U> >().allocate(1);
+    ::new ((void*)sf_qpi) SimpleFloat<T,W,bits,U>();
     * sf_qpi = one().atan();
   }
   return * sf_qpi;
@@ -927,14 +927,11 @@ template <typename T, typename W, int bits, typename U> SimpleFloat<T,W,bits,U> 
   return u.atan() << U(1);
 }
 
-// XXX:
-vector<myfloat>* sf_ea;
-vector<myfloat>* sf_iea;
-
 template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> >& SimpleFloat<T,W,bits,U>::exparray() const {
+  static vector<SimpleFloat<T,W,bits,U> >* sf_ea(0);
   if(! sf_ea) {
-    sf_ea = SimpleAllocator<vector<myfloat> >().allocate(1);
-    ::new ((void*)sf_ea) vector<myfloat>();
+    sf_ea = SimpleAllocator<vector<SimpleFloat<T,W,bits,U> > >().allocate(1);
+    ::new ((void*)sf_ea) vector<SimpleFloat<T,W,bits,U> >();
   }
   vector<SimpleFloat<T,W,bits,U> >& ebuf(* sf_ea);
   if(ebuf.size())
@@ -952,6 +949,7 @@ template <typename T, typename W, int bits, typename U> const vector<SimpleFloat
 }
 
 template <typename T, typename W, int bits, typename U> const vector<SimpleFloat<T,W,bits,U> >& SimpleFloat<T,W,bits,U>::invexparray() const {
+  static vector<SimpleFloat<T,W,bits,U> >* sf_iea(0);
   if(! sf_iea) {
     sf_iea = SimpleAllocator<vector<SimpleFloat<T,W,bits,U> > >().allocate(1);
     ::new ((void*)sf_iea) vector<SimpleFloat<T,W,bits,U> >();
@@ -2074,9 +2072,9 @@ template <typename T>  SimpleVector<T> linearInvariant(const SimpleMatrix<T>& in
 
 // --- N.B. start small only to enname functions ---
 // N.B. functions between R and [0,1], ]0,1[.
-myfloat* bm_sqe;
-myfloat* bm_denom;
 template <typename T>  T binMargin(const T& in) {
+  static T* bm_sqe(0);
+  static T* bm_denom(0);
   if(! bm_sqe) {
     bm_sqe   = SimpleAllocator<T>().allocate(1);
     bm_denom = SimpleAllocator<T>().allocate(1);
@@ -2391,8 +2389,8 @@ template <typename T, T (*f)(const SimpleVector<T>&)>  T invNext(const SimpleVec
 }
 
 // N.B. some of the essential point hack.
-myfloat* npoleM;
 template <typename T, T (*f)(const SimpleVector<T>&)>  T northPoleNext(const SimpleVector<T>& in) {
+  static T* npoleM(0);
   const T zero(int(0));
   const T one(int(1));
   if(! npoleM) {
@@ -2880,11 +2878,16 @@ template <typename T, int nprogress>  SimpleVector<T> pWholeMarkov(const SimpleV
 template <typename T>  SimpleVector<SimpleVector<T> > cherryStat(const SimpleVector<SimpleVector<T> >& p, const SimpleVector<SimpleVector<T> >& in) {
   SimpleVector<T> jv(p[0].size());
   jv.O();
-  for(int i = 0; i < p.size() - 1; i ++)
+  SimpleVector<SimpleVector<T> > res(p);
+  for(int i = 0; i < p.size() - 1; i ++) {
+    for(int j = 0; j < jv.size(); j ++)
+      if(jv[j] < T(int(0)) )
+        res[i][j] = - res[i][j];
     for(int j = 0; j < p[i].size(); j ++)
       jv[j] += p[i][j] * in[i - (p.size() - 1) + in.size()][j];
-  MFENCE();
-  SimpleVector<SimpleVector<T> > res(p);
+    MFENCE();
+  }
+  const int i(p.size() - 1);
   for(int j = 0; j < jv.size(); j ++)
     if(jv[j] < T(int(0)) ) for(int i = 0; i < res.size(); i ++)
       res[i][j] = - res[i][j];
@@ -2983,24 +2986,30 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const
 #if defined(_OPENMP)
   for(int i = 1; i <= in0.size(); i ++) pnextcacher<T>(i, 1);
 #endif
+  SimpleVector<SimpleVector<T> > in(delta<SimpleVector<T> >(in0));
+  for(int i = 0; i < in.size(); i ++) in[i] /= T(int(2));
+  in = offsetHalf<T>(in);
 #if _P_PRNG_ <= 1
   MFENCE();
-  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
-    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in0, bits), bits, strloop),
-      bits)), - bits)), unOffsetHalf<T>(in0));
+  SimpleVector<SimpleVector<T> > p(
+    cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
+      pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits), bits, strloop),
+        bits)), - bits)), unOffsetHalf<T>(in)) );
 #else
-  const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in0.size() + 1, in0[0].size() * _P_PRNG_));
+  const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in.size() + 1, in[0].size() * _P_PRNG_));
   MFENCE();
-  const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in0.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
+  const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
   MFENCE();
-  return applyPostPRNG<T>(cherryStat<T>(
+  SimpleVector<SimpleVector<T> > p(applyPostPRNG<T>(cherryStat<T>(
     unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(applyPostPRNG<T>(
       pWholeMarkovCherry<T, nprogress>(offsetHalf<T>(applyPrepPRNG<T>(
         unOffsetHalf<T>(bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(
-          unOffsetHalf<T>(in0), prng0)), bits)), prng1)), bits, strloop),
+          unOffsetHalf<T>(in), prng0)), bits)), prng1)), bits, strloop),
             prng1, prng0[0].size() * bits), bits)), - bits)), applyPrepPRNG<T>(
-              unOffsetHalf<T>(in0), prng0)), prng0, in0[0].size());
+              unOffsetHalf<T>(in), prng0)), prng0, in[0].size()) );
 #endif
+  for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+  return cherryStat<T>(p, unOffsetHalf<T>(in0));
 }
 
 template <typename T, int nprogress>  SimpleVector<T> pPRNG(const SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {

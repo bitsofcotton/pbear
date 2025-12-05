@@ -2,37 +2,35 @@
 extern "C" {
 #include <sys/types.h>
 #include "efiboot.c.punched"
-int atexit(void (*function)(void)) { return 0; }
-__dead void
-panic(const char *fmt, ...)
-{
-        va_list ap;
-        va_start(ap, fmt);
-        vprintf(fmt, ap);
-        printf("\n");
-        va_end(ap);
-        _rtt();
-        /*NOTREACHED*/
-}
-void assert(const uint64_t f) {
-  if(! f) {
-    uint64_t* stack;
-    __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
-    printf("assertion failed\n");
-    printf("f: %x\n", (size_t)(void*)assert);
-    for(int i = 0; i < 16; i ++)
-      printf("s: %x\n", stack[i]);
-    for(; efi_cons_getc(0) != ' ';);
+  int atexit(void (*function)(void)) { return 0; }
+  __dead void panic(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    printf("\n");
+    va_end(ap);
     _rtt();
+    /*NOTREACHED*/
   }
-  return;
-}
-struct consdev constab[] = {
-        { efi_cons_probe, efi_cons_init, efi_cons_getc, efi_cons_putc },
-        { efi_com_probe, efi_com_init, efi_com_getc, efi_com_putc },
-        { NULL }
-};
-struct consdev *cn_tab = constab;
+  void assert(const uint64_t f) {
+    if(! f) {
+      uint64_t* stack;
+      __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
+      printf("assertion failed\n");
+      printf("f: %x\n", (size_t)(void*)assert);
+      for(int i = 0; i < 16; i ++)
+        printf("s: %x\n", stack[i]);
+      for(; efi_cons_getc(0) != ' ';);
+      _rtt();
+    }
+    return;
+  }
+  struct consdev constab[] = {
+    { efi_cons_probe, efi_cons_init, efi_cons_getc, efi_cons_putc },
+    { efi_com_probe, efi_com_init, efi_com_getc, efi_com_putc },
+    { NULL }
+  };
+  struct consdev *cn_tab = constab;
 }
 
 #define M_ALLOC (32 * 1024 * 1024)
@@ -131,23 +129,11 @@ EFI_STATUS calc() {
   char buf[0x200];
   int ctr(0);
   int tctr(0);
-  int lctr(0);
-  int ltctr(0);
   int length(0);
   int m('r');
   idFeeder<SimpleVector<num_t> > b;
-  SimpleVector<num_t> carry;
-  sf_qpi = (myfloat*)0;
-  sf_ea  = (vector<myfloat>*)0;
-  sf_iea = (vector<myfloat>*)0;
-  bm_sqe = (myfloat*)0;
-  bm_denom = (myfloat*)0;
-  pncr_cp = (vector<vector<SimpleVector<myfloat> > >*)0;
   const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
   printf("mem usage temporal efficiency nil: %d, %d\n", bmsqpi.m, bmsqpi.e);
-  npoleM = SimpleAllocator<num_t>().allocate(1);
-  ::new ((void*)npoleM) num_t();
-  * npoleM = atan(num_t(int(1)) / sqrt(SimpleMatrix<num_t>().epsilon() ));
   pncr_cp = SimpleAllocator<vector<vector<SimpleVector<myfloat> > > >().allocate(1);
   ::new ((void*)pncr_cp) vector<vector<SimpleVector<myfloat> > >();
  mode:
@@ -174,14 +160,15 @@ EFI_STATUS calc() {
       const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
       printf("%c: %d%c%d\n\0", m, per10000 / 100, '.', per10000 % 100);
     }
-    goto bbbreak;
+    goto mode;
   } else if(m == 'g') {
     pncr_cp->resize(cg_n + 1);
     for(int i = 1; i <= cg_n; i ++) {
       (*pncr_cp)[i].resize(2);
       (*pncr_cp)[i][1].resize(i);
       const int& size(i);
-      const int  step(1); const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
+      const int  step(1);
+      const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
       for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
       printf("%d:", (*pncr_cp)[i][1].size());
     }
@@ -222,7 +209,6 @@ EFI_STATUS calc() {
   for(int lc = 0; 0 <= lc; lc ++) {
     SimpleVector<num_t> vbuf(3);
     vbuf.O();
-    if(carry.size() != vbuf.size()) { carry.resize(vbuf.size() * 2 + 1); carry.O(); }
     int i;
     switch(m) {
     case 'n': {
@@ -253,31 +239,20 @@ EFI_STATUS calc() {
     b.next(vbuf);
    lnext:
     if(b.full) {
-      /* intentionally blank */
       SimpleVector<SimpleVector<num_t> > p(
-        pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
-      SimpleVector<num_t> pj(p.size() - 1);
-      num_t sign(int(0));
-      pj.O();
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(delta<SimpleVector<num_t> >(b.res)), 8, string("") ));
+      for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+      cherryStat<num_t>(p, b.res);
       for(int i = 1; i < p.size() - 1; i ++) {
+        num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
-          pj[i] += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
-        sign += pj[i];
-      }
-      for(int i = 1; i < pj.size(); i ++) {
+          j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
         tctr ++;
-        const num_t j(pj[i] * sign);
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
         const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
-        const int per10000l(num_t(lctr) / num_t(max(int(ltctr), int(1))) * num_t(int(10000)));
-        printf("%c%d: %d%c%d L %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100, per10000l / 100, '.', per10000l % 100);
+        printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
       }
-      ltctr ++;
-      const int i(p.size() - 2);
-      const num_t j(pj[i] * sign);
-      if(j == num_t(int(0))) ltctr --;
-      else if(num_t(int(0)) < j) lctr ++;
       b.t = 0;
       b.full = 0;
     }
