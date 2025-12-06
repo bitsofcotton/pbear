@@ -34,7 +34,7 @@ extern "C" {
 }
 
 #define M_ALLOC (32 * 1024 * 1024)
-#define _P_PRNG_ 3
+// #define _BURN_ 5
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -207,11 +207,11 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(_P_PRNG_);
+    SimpleVector<num_t> vbuf(11);
     vbuf.O();
-    int i;
     switch(m) {
     case 'n': {
+      int i;
       for(i = 0; i < sizeof(buf) - 1; i ++)
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
       buf[i] = '\0';
@@ -236,7 +236,7 @@ EFI_STATUS calc() {
       break;
     } }
     for(int j = 1; j < vbuf.size(); j ++) vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(vbuf * num_t(int(2)));
+    b.next(vbuf);
    lnext:
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
