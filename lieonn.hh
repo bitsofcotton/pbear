@@ -649,6 +649,7 @@ private:
       if(bool(src & bt)) b += doff;
     }
     const U shift(sizeof(V) * 8 - b - 1);
+    // XXX:
     assert(U(int(0)) <= shift);
     if(shift) src <<= shift;
     MFENCE();
@@ -692,7 +693,7 @@ private:
 /*
     typedef uint32_t myuint;
     typedef int32_t  myint;
-    typedef SimpleFloat<myuint, DUInt<uint32_t, 32>, 32, myint> myfloat;
+    typedef SimpleFloat<myuint, uint64_t, 32, myint> myfloat;
 */
     typedef uint64_t myuint;
     typedef int64_t  myint;
@@ -2906,8 +2907,8 @@ template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pWholeMarko
     unOffsetHalf<T>(in) );
 }
 
-#if !defined(_P_PRNG_)
-#define _P_PRNG_ 11
+#if !defined(_BURN_)
+#define _BURN_ 11
 #endif
 
 template <typename T>  SimpleVector<SimpleVector<T> > seepBits(const SimpleVector<SimpleVector<T> >& in, const int& bits) {
@@ -2986,23 +2987,19 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const
 #if defined(_OPENMP)
   for(int i = 1; i <= in.size(); i ++) pnextcacher<T>(i, 1);
 #endif
-#if _P_PRNG_ <= 1
+#if _BURN_ <= 1
   MFENCE();
-  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(
-    pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits), bits, strloop),
-      bits)), - bits)), unOffsetHalf<T>(in));
+  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(
+    seepBits<T>(pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits),
+      bits, strloop), bits)), - bits)), unOffsetHalf<T>(in)) );
 #else
-  const SimpleVector<SimpleVector<char> > prng0(preparePRNG(in.size() + 1, in[0].size() * _P_PRNG_));
+  const SimpleVector<SimpleVector<char> > prng(preparePRNG(in.size() + 1, in[0].size() * _BURN_ * bits));
   MFENCE();
-  const SimpleVector<SimpleVector<char> > prng1(preparePRNG(in.size() + 1, prng0[0].size() * _P_PRNG_ * bits));
-  MFENCE();
-  return applyPostPRNG<T>(cherryStat<T>(
-    unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(seepBits<T>(applyPostPRNG<T>(
-      pWholeMarkovCherry<T, nprogress>(offsetHalf<T>(applyPrepPRNG<T>(
-        unOffsetHalf<T>(bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(
-          unOffsetHalf<T>(in), prng0)), bits)), prng1)), bits, strloop),
-            prng1, prng0[0].size() * bits), bits)), - bits)), applyPrepPRNG<T>(
-              unOffsetHalf<T>(in), prng0)), prng0, in[0].size());
+  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(
+    seepBits<T>(applyPostPRNG<T>(pWholeMarkovCherry<T, nprogress>(
+      offsetHalf<T>(applyPrepPRNG<T>(unOffsetHalf<T>(bitsSlide<T>(in, bits)),
+        prng)), bits, strloop), prng, in[0].size() * bits), bits)), - bits)),
+          unOffsetHalf<T>(in) );
 #endif
 }
 

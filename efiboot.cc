@@ -82,10 +82,10 @@ extern "C" {
     simplealloc_init();
     unsigned long long stack = 0;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      64 * 1024 * 1024 / (4 * 1024), &stack);
+      128 * 1024 * 1024 / (4 * 1024), &stack);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
-    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 64 * 1024 * 1024 - 64) );
+    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 128 * 1024 * 1024 - 64) );
     return EFI_SUCCESS;
   }
 }
@@ -207,7 +207,7 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(3);
+    SimpleVector<num_t> vbuf(_P_PRNG_);
     vbuf.O();
     int i;
     switch(m) {
@@ -236,18 +236,17 @@ EFI_STATUS calc() {
       break;
     } }
     for(int j = 1; j < vbuf.size(); j ++) vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(vbuf);
+    b.next(vbuf * num_t(int(2)));
    lnext:
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
         pPRNGM<num_t, 0>(offsetHalf<num_t>(delta<SimpleVector<num_t> >(b.res)), 8, string("") ));
       for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
-      cherryStat<num_t>(p, b.res);
+      p = cherryStat<num_t>(p, b.res);
       for(int i = 1; i < p.size() - 1; i ++) {
         num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
-          // N.B. cherryStat returns sign aligned ones.
-          j += p[i][k] * abs(b.res[i - (p.size() - 1) + b.res.size()][k]);
+          j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
         tctr ++;
         if(j == num_t(int(0))) tctr --;
         else if(num_t(int(0)) < j) ctr ++;
