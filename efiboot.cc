@@ -33,8 +33,12 @@ extern "C" {
   struct consdev *cn_tab = constab;
 }
 
+const bool prngdata[] = {
+#include "prng.h"
+};
+
 #define M_ALLOC (32 * 1024 * 1024)
-// #define _BURN_ 5
+//#define _BURN_ 11
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -48,19 +52,20 @@ const long long pdata[] = {
 extern "C" {
   EFI_STATUS calc() ;
   
-  void simplealloc_init() {
+  unsigned long long simplealloc_init() {
     unsigned long long heap = 0;
     EFI_STATUS status;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
       1700 * 1024 * 1024 / (4 * 1024), &heap);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
-    v_alloc = reinterpret_cast<unsigned long long *>(heap);
-    in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long));
-    last    = heap + M_ALLOC * sizeof(unsigned long long) * 2;
+    unsigned long long stack(heap);
+    v_alloc = reinterpret_cast<unsigned long long *>(heap + 128 * 1024 * 1024);
+    in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long) + 128 * 1024 * 1024);
+    last    = heap + M_ALLOC * sizeof(unsigned long long) * 2 + 128 * 1024 * 1024;
     sam_upper = heap + 1700 * 1024 * 1024;
     lastptr = 0;
-    return;
+    return stack;
   }
   
   EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab) {
@@ -79,12 +84,7 @@ extern "C" {
       status = BS->HandleProtocol(imgp->DeviceHandle, &devp_guid,
         (void **)&dp0);
     efi_memprobe();
-    simplealloc_init();
-    unsigned long long stack = 0;
-    status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      128 * 1024 * 1024 / (4 * 1024), &stack);
-    if (status != EFI_SUCCESS)
-      panic("BS->AllocatePages()");
+    unsigned long long stack(simplealloc_init());
     asm("movq %0, %%rsp; call calc;" :: "r"(stack + 128 * 1024 * 1024 - 64) );
     return EFI_SUCCESS;
   }
@@ -126,7 +126,6 @@ void setPixel(const int& y, const int& x, const num_t& r, const num_t& g, const 
 
 EFI_STATUS calc() {
   printf("preparing...\n");
-  char buf[0x200];
   int ctr(0);
   int tctr(0);
   int length(0);
@@ -139,29 +138,9 @@ EFI_STATUS calc() {
  mode:
   printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h | g for cg.h)\n");
   while(true)
-    switch(m = efi_cons_getc(0)) { case 'c': case 'g': case 'n': case 'r': case'k': case'd': goto bbreak; }
+    switch(m = efi_cons_getc(0)) { case 'g': case 'n': case 'r': case'k': case'd': goto bbreak; }
  bbreak:
-  if(m == 'c') {
-    for(int i = 0; i < sizeof(pdata) / sizeof(unsigned long long) / 3 / 6; i ++) {
-      SimpleVector<num_t> v(6);
-      v.O();
-      for(int j = 0; j < 6; j ++) {
-        v[j].m = pdata[i * 3 * 6 + j * 3] << 32;
-        v[j].e = pdata[i * 3 * 6 + j * 3 + 1];
-        v[j].s = pdata[i * 3 * 6 + j * 3 + 2];
-         printf("%x, %x, %x\n", v[j].m >> 32, v[j].e, v[j].s);
-      }
-      for(int j = 0; j < 3; j ++) v[j] += v[j + 3];
-      num_t flag(int(0));
-      for(int j = 0; j < 3; j ++) flag += v[j] * v[j + 3];
-      tctr ++;
-      if(flag == num_t(int(0))) tctr --;
-      else if(num_t(int(0)) < flag) ctr ++;
-      const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
-      printf("%c: %d%c%d\n\0", m, per10000 / 100, '.', per10000 % 100);
-    }
-    goto mode;
-  } else if(m == 'g') {
+  if(m == 'g') {
     pncr_cp->resize(cg_n + 1);
     for(int i = 1; i <= cg_n; i ++) {
       (*pncr_cp)[i].resize(2);
@@ -207,10 +186,11 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(11);
+    SimpleVector<num_t> vbuf(1);
     vbuf.O();
     switch(m) {
     case 'n': {
+      char buf[0x200];
       int i;
       for(i = 0; i < sizeof(buf) - 1; i ++)
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
@@ -235,14 +215,22 @@ EFI_STATUS calc() {
       } else goto lnext;
       break;
     } }
-    for(int j = 1; j < vbuf.size(); j ++) vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(vbuf);
+    for(int j = 1; j < vbuf.size(); j ++)
+      vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
+    b.next(vbuf * num_t(int(2)) );
+//    b.next(vbuf);
    lnext:
     if(b.full) {
       SimpleVector<SimpleVector<num_t> > p(
-        pPRNGM<num_t, 0>(offsetHalf<num_t>(delta<SimpleVector<num_t> >(b.res)), 8, string("") ));
-      for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
+/*
+      SimpleVector<SimpleVector<num_t> > p(
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(
+          delta<SimpleVector<num_t> >(b.res)), 8, string("") ));
+      for(int i = 1; i < p.size(); i ++)
+        p[i] += p[i - 1];
       p = cherryStat<num_t>(p, b.res);
+*/
       for(int i = 1; i < p.size() - 1; i ++) {
         num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)

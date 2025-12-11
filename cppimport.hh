@@ -8,14 +8,14 @@ template <typename T> class SimpleAllocator;
 
 template <typename T, class _Allocator = SimpleAllocator<T> > class vector {
 private:
-  inline void initmem() { sz ^= sz; sz_alloc ^= sz_alloc; entity = reinterpret_cast<T*>(size_t(0)); }
+  void initmem() { sz ^= sz; sz_alloc ^= sz_alloc; entity = reinterpret_cast<T*>(size_t(0)); }
 public:
-  inline vector<T, _Allocator>() { initmem(); }
-  inline vector<T, _Allocator>(const int s) { initmem(); resize(s); }
-  inline vector<T, _Allocator>(const vector<T, _Allocator>& x) { initmem(); *this = x; }
-  inline vector<T, _Allocator>(vector<T, _Allocator>&& x) { initmem(); *this = x; }
-  inline ~vector<T, _Allocator>() { for(int i = 0; i < sz_alloc; i ++) entity[i].~T(); if(sz_alloc || reinterpret_cast<size_t>(entity) ) alloc.deallocate(entity, sz_alloc); initmem(); }
-  inline void reserve(const size_t& nsz) {
+  vector<T, _Allocator>() { initmem(); }
+  vector<T, _Allocator>(const int s) { initmem(); resize(s); }
+  vector<T, _Allocator>(const vector<T, _Allocator>& x) { initmem(); *this = x; }
+  vector<T, _Allocator>(vector<T, _Allocator>&& x) { initmem(); *this = x; }
+  ~vector<T, _Allocator>() { for(int i = 0; i < sz_alloc; i ++) entity[i].~T(); if(sz_alloc || reinterpret_cast<size_t>(entity) ) alloc.deallocate(entity, sz_alloc); initmem(); }
+  void reserve(const size_t& nsz) {
     if(nsz < sz) return;
     if(! entity || sz_alloc != nsz) {
       T* nentity(alloc.allocate(nsz));
@@ -30,25 +30,25 @@ public:
     }
     sz_alloc = nsz;
   }
-  inline void resize(const size_t& nsz, const T& obj = T()) { 
+  void resize(const size_t& nsz, const T& obj = T()) { 
     if(sz_alloc < nsz) reserve(nsz);
     if(sz < nsz) for(int i = sz; i < nsz; i ++) entity[i] = obj;
     else for(int i = nsz; i < sz; i ++) entity[i] = obj;
     sz = nsz;
   }
-  inline void emplace_back(const T& obj) { T nobj(obj); emplace_back(move(nobj)); }
-  inline void emplace_back(T&& obj) {
+  void emplace_back(const T& obj) { T nobj(obj); emplace_back(move(nobj)); }
+  void emplace_back(T&& obj) {
     if(! sz_alloc) reserve(20);
     if(sz_alloc <= sz + 1) reserve(sz_alloc * 2);
     entity[sz ++] = obj;
   }
-  inline vector<T, _Allocator>& operator = (const vector<T, _Allocator>& x) {
+  vector<T, _Allocator>& operator = (const vector<T, _Allocator>& x) {
     if(! size() && ! x.size()) return *this;
     if(size() != x.size()) resize(x.size());
     for(int i = 0; i < x.size(); i ++) entity[i] = x.entity[i];
     return *this;
   }
-  inline vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
+  vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
     if(! size() && ! x.size()) return *this;
     if(sz_alloc && reinterpret_cast<size_t>(entity)) {
       for(int i = 0; i < sz_alloc; i ++) entity[i].~T();
@@ -61,9 +61,9 @@ public:
     x.initmem();
     return *this;
   }
-  inline const T& operator [] (const size_t& idx) const { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
-  inline T& operator [] (const size_t& idx) { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
-  inline size_t size() const { return sz; }
+  const T& operator [] (const size_t& idx) const { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
+  T& operator [] (const size_t& idx) { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
+  size_t size() const { return sz; }
   size_t sz;
   size_t sz_alloc;
   T*  entity;
@@ -94,9 +94,9 @@ template <typename T> void swap(T& x, T& y) {
 // stub:
 class string {
 public:
-  inline string() { ; }
-  inline string(const char* x) { ; }
-  inline string operator + (const string& x) { return string(); }
+  string() { ; }
+  string(const char* x) { ; }
+  string operator + (const string& x) { return string(); }
 };
 
 // stub:
@@ -105,7 +105,11 @@ string to_string(const size_t& x) { return string(); }
 
 // N.B. thanks to musl-1.2.3/src/prng/rand.c
 unsigned long long prng_seed(1234);
-inline int random() {
+int prng_idx(0);
+int random() {
+  if(prng_idx < sizeof(prngdata) / sizeof(bool))
+    return prngdata[prng_idx ++];
+  printf("!");
   prng_seed = 6364136223846793005ULL * prng_seed + 1;
   return int(prng_seed >> 33);
 }

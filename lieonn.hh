@@ -2989,12 +2989,12 @@ template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pPRNGM(const
     seepBits<T>(pWholeMarkovCherry<T, nprogress>(bitsSlide<T>(in, bits),
       bits, strloop), bits)), - bits)), unOffsetHalf<T>(in));
 #else
-  const SimpleVector<SimpleVector<char> > prng(preparePRNG(in.size() + 1, in[0].size() * _BURN_ * bits));
+  const SimpleVector<SimpleVector<char> > prng(preparePRNG(in.size() + 1, in[0].size() * _BURN_));
   MFENCE();
-  return cherryStat<T>(unOffsetHalf<T>(bitsG<T, true>(offsetHalf<T>(
-    seepBits<T>(applyPostPRNG<T>(pWholeMarkovCherry<T, nprogress>(
-      offsetHalf<T>(applyPrepPRNG<T>(unOffsetHalf<T>(bitsSlide<T>(in, bits)),
-        prng)), bits, strloop), prng, in[0].size() * bits), bits)), - bits)),
+  return cherryStat<T>(applyPostPRNG<T>(unOffsetHalf<T>(bitsG<T, true>(
+    offsetHalf<T>(seepBits<T>(pWholeMarkovCherry<T, nprogress>(
+      bitsSlide<T>(offsetHalf<T>(applyPrepPRNG<T>(unOffsetHalf<T>(in), prng)),
+        bits), bits, strloop), bits)), - bits)), prng, in[0].size(),
           unOffsetHalf<T>(in) );
 #endif
 }
