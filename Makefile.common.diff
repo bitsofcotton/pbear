@@ -1,14 +1,15 @@
-18,22c18,19
+18,23c18,21
 < COPTS+=		-fshort-wchar -fPIC -mno-red-zone
 < .if ${SOFTRAID:L} == "yes"
 < COPTS+=		-DSOFTRAID
 < COPTS+=		-DIDLE_POWEROFF
 < .endif
+< COPTS+=		-D_STANDALONE -nostdinc -fno-builtin
 ---
 > COPTS+=		-fshort-wchar -fPIC -mno-red-zone -mno-sse -mno-sse2 -mno-avx
 > COPTS+=		-mno-mmx -mno-avx2 -mno-3dnow
-23a21
-> COPTS+=		-Oz -fno-stack-protector
+> COPTS+=		-D_STANDALONE -nostdinc -fno-builtin -fno-inline
+> COPTS+=		-O1 -fno-stack-protector
 29,30c27
 < SRCS+=	efiboot.c efidev.c efipxe.c efirng.c
 < SRCS+=	conf.c dev_i386.c cmd_i386.c diskprobe.c exec_i386.c machdep.c
@@ -50,5 +51,5 @@
 < 
 81a53,55
 > efiboot.o:
-> 	clang++ -Oz -fno-stack-protector -nostdlib -nodefaultlibs -nostdinc -nostdlibinc -nostdinc++ -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -msoft-float -mtune=generic -mno-avx2 -mno-avx -mno-sse2 -mno-sse -mno-3dnow -mno-mmx -fno-omit-frame-pointer -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES -DHEAP_LIMIT=${EFI_HEAP_LIMIT} -isystem /usr/include -D_FLOAT_BITS_=64 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
+> 	clang++ -O1 -fno-stack-protector -fno-builtin -fno-inline -fno-exceptions -fno-rtti -mno-red-zone -ffreestanding -nostdlib -nodefaultlibs -nostdinc -nostdlibinc -nostdinc++ -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -msoft-float -mtune=generic -mno-avx2 -mno-avx -mno-sse2 -mno-sse -mno-3dnow -mno-mmx -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES -DHEAP_LIMIT=${EFI_HEAP_LIMIT} -isystem /usr/include -D_FLOAT_BITS_=64 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
 > 

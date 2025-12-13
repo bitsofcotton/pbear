@@ -37,14 +37,15 @@ const bool prngdata[] = {
 #include "prng.h"
 };
 
+#define _FLOAT_BITS_ 64
 #define M_ALLOC (32 * 1024 * 1024)
-//#define _BURN_ 11
+//#define _BURN_ 3
 #define _SIMPLEALLOC_ 64
 #include "cppimport.hh"
 #include "lieonn.hh"
 typedef myfloat num_t;
 
-const long long pdata[] = {
+const int pdata[] = {
 #include "pdata.h"
 };
 #include "cg.h"
@@ -60,9 +61,9 @@ extern "C" {
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
     unsigned long long stack(heap);
-    v_alloc = reinterpret_cast<unsigned long long *>(heap + 128 * 1024 * 1024);
-    in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long) + 128 * 1024 * 1024);
-    last    = heap + M_ALLOC * sizeof(unsigned long long) * 2 + 128 * 1024 * 1024;
+    v_alloc = reinterpret_cast<unsigned long long *>(heap + 64 * 1024 * 1024);
+    in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long) + 64 * 1024 * 1024);
+    last    = heap + M_ALLOC * sizeof(unsigned long long) * 2 + 64 * 1024 * 1024;
     sam_upper = heap + 1700 * 1024 * 1024;
     lastptr = 0;
     return stack;
@@ -85,7 +86,7 @@ extern "C" {
         (void **)&dp0);
     efi_memprobe();
     unsigned long long stack(simplealloc_init());
-    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 128 * 1024 * 1024 - 64) );
+    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 64 * 1024 * 1024 - 64) );
     return EFI_SUCCESS;
   }
 }
@@ -186,7 +187,7 @@ EFI_STATUS calc() {
   }
   b = idFeeder<SimpleVector<num_t> >(length);
   for(int lc = 0; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(1);
+    SimpleVector<num_t> vbuf(8);
     vbuf.O();
     switch(m) {
     case 'n': {
@@ -204,8 +205,7 @@ EFI_STATUS calc() {
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
-      vbuf[0] = num_t(pdata[lc]) / num_t(999) - num_t(int(1)) /
-          num_t(int(2));
+      vbuf[0] = (num_t(pdata[lc]) - num_t(int(999)) / num_t(int(2))) / num_t(int(1000));
       break;
     } case 'k': {
       const int x(efi_cons_getc(0));
@@ -217,29 +217,28 @@ EFI_STATUS calc() {
     } }
     for(int j = 1; j < vbuf.size(); j ++)
       vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(vbuf * num_t(int(2)) );
-//    b.next(vbuf);
+    b.next(vbuf);
    lnext:
     if(b.full) {
+      SimpleVector<SimpleVector<num_t> > db(delta<SimpleVector<num_t> >(b.res));
+      MFENCE();
       SimpleVector<SimpleVector<num_t> > p(
-        pPRNGM<num_t, 0>(offsetHalf<num_t>(b.res), 8, string("") ));
-/*
-      SimpleVector<SimpleVector<num_t> > p(
-        pPRNGM<num_t, 0>(offsetHalf<num_t>(
-          delta<SimpleVector<num_t> >(b.res)), 8, string("") ));
-      for(int i = 1; i < p.size(); i ++)
-        p[i] += p[i - 1];
-      p = cherryStat<num_t>(p, b.res);
-*/
-      for(int i = 1; i < p.size() - 1; i ++) {
+        pPRNGM<num_t, 0>(offsetHalf<num_t>(db), 8, string("") ));
+      MFENCE();
+      for(int i = 0; i < db.size() - (p.size() - 1); i ++) p[0] += db[i];
+      MFENCE();
+      for(int i = 1; i < p.size(); i ++) p[i] += p[i - 1];
+      MFENCE();
+      for(int i = 0; i < p.size() - 1; i ++) {
         num_t j(int(0));
         for(int k = 0; k < p[i].size(); k ++)
           j += p[i][k] * b.res[i - (p.size() - 1) + b.res.size()][k];
         tctr ++;
         if(j == num_t(int(0))) tctr --;
-        else if(num_t(int(0)) < j) ctr ++;
-        const int per10000(num_t(ctr) / num_t(max(int(tctr), int(1))) * num_t(int(10000)));
-        printf("%c%d: %d%c%d\r\n\0", m, lc, per10000 / 100, '.', per10000 % 100);
+        if(num_t(int(0)) < j) ctr ++;
+        const num_t rr(num_t(2 * ctr) / num_t(max(int(tctr), int(1))) - num_t(int(1)) );
+        printf("%c%d: %c0.%04d\r\n\0", m, lc, rr < num_t(int(0)) ? '-' : ' ',
+          int(abs(rr) * num_t(int(10000)) ) );
       }
       b.t = 0;
       b.full = 0;
