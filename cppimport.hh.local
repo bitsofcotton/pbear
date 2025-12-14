@@ -163,7 +163,7 @@ string to_string(const size_t& x) { return string(); }
 // N.B. thanks to musl-1.2.3/src/prng/rand.c
 unsigned long long prng_seed(1234);
 int prng_idx(0);
-int random() {
+int myrandom() {
   if(prng_idx < sizeof(prngdata) / sizeof(bool))
     return prngdata[prng_idx ++] ? 0xffffff : 0;
   printf("!");
