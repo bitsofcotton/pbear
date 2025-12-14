@@ -130,6 +130,7 @@ int main(int argc, char* argv[]) {
     for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
     printf("%d:", (*pncr_cp)[i][1].size());
   }
+  const int bits(8);
   for(int lc = 0; 0 <= lc; lc ++) {
     idFeeder<SimpleVector<num_t> > b(length);
     for( ; 0 <= lc; lc ++) {
@@ -153,11 +154,13 @@ int main(int argc, char* argv[]) {
     } }
     for(int j = 1; j < vbuf.size(); j ++)
       vbuf[j] = myrandom() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(vbuf);
+    b.next(unOffsetHalf<num_t>(bitsSlide<num_t>(offsetHalf<num_t>(
+      vbuf * num_t(int(2)) ), bits)) );
    lnext:
     if(b.full) {
-      SimpleVector<SimpleVector<num_t> > p(pPRNGM<num_t, 0>(offsetHalf<num_t>(
-        delta<SimpleVector<num_t> >(b.res)), 8, string("")));
+      b.res = delta<SimpleVector<num_t> >(b.res);
+      SimpleVector<SimpleVector<num_t> > p(pRS00<num_t, 0>(offsetHalf<num_t>(
+        normalizeS<num_t>(b.res).first), string("")));
       SimpleVector<SimpleVector<num_t> > q;
       MFENCE();
       // XXX: we need this, don't know why.
@@ -186,6 +189,9 @@ int main(int argc, char* argv[]) {
       MFENCE();
       for(int i = 1; i < q.size(); i ++)
         for(int j = 0; j < q[i].size(); j ++) q[i][j] += q[i - 1][j];
+      q = seepBits<num_t>(q, bits);
+      for(int i = 0; i < q.size(); i ++) q[i] = unOffsetHalf<num_t>(
+        bitsG<num_t, true>(offsetHalf<num_t>(q[i]), - bits));
       SimpleVector<num_t> j(q[0].size() / 2);
       j.O();
       printf("%d\n", q.size());
