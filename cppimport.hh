@@ -163,13 +163,22 @@ string to_string(const size_t& x) { return string(); }
 // N.B. thanks to musl-1.2.3/src/prng/rand.c
 unsigned long long prng_seed(1234);
 int prng_idx(0);
-int random() {
+int myrandom() {
   if(prng_idx < sizeof(prngdata) / sizeof(bool))
     return prngdata[prng_idx ++] ? 0xffffff : 0;
   printf("!");
   prng_seed = 6364136223846793005ULL * prng_seed + 1;
   return int(prng_seed >> 33);
 }
+
+#if defined(max)
+#undef max
+#endif
+#if defined(min)
+#undef min
+#endif
+#define max(x,y) ((x)<(y)?(y):(x))
+#define min(x,y) ((x)<(y)?(x):(y))
 
 #define _SIMPLE_VECTOR_
 #endif

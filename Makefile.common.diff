@@ -19,7 +19,7 @@
 < .PATH:	${S}/stand/boot
 < SRCS+=	boot.c bootarg.c cmd.c vars.c
 < 
-37,47c31,32
+37,47c31
 < SRCS+=	alloc.c ctime.c exit.c getchar.c hexdump.c \
 < 	memcmp.c memcpy.c memmove.c memset.c printf.c \
 < 	putchar.c snprintf.c strcmp.c strerror.c strlen.c strncmp.c strncpy.c \
@@ -32,9 +32,8 @@
 < 	pkcs5_pbkdf2.c rijndael.c sha1.c sha2.c softraid.c
 < .endif
 ---
-> SRCS+=	memcmp.c memcpy.c memmove.c memset.c printf.c cons.c \
-> 	putchar.c strcmp.c strlen.c strncmp.c strncpy.c alloc.c
-49,62d33
+> SRCS+=	printf.c cons.c putchar.c alloc.c memmove.c
+49,62d32
 < .PATH:	${S}/lib/libz
 < SRCS+=	adler32.c crc32.c inflate.c inftrees.c
 < 
@@ -49,7 +48,7 @@
 < SRCS+=	softraid_amd64.c
 < .endif
 < 
-81a53,55
+81a52,54
 > efiboot.o:
 > 	clang++ -O1 -fno-stack-protector -fno-builtin -fno-inline -fno-exceptions -fno-rtti -mno-red-zone -ffreestanding -nostdlib -nodefaultlibs -nostdinc -nostdlibinc -nostdinc++ -fno-exceptions -fno-threadsafe-statics -fno-use-cxa-atexit -msoft-float -mtune=generic -mno-avx2 -mno-avx -mno-sse2 -mno-sse -mno-3dnow -mno-mmx -D_LIBCPP_REMOVE_TRANSITIVE_INCLUDES -DHEAP_LIMIT=${EFI_HEAP_LIMIT} -isystem /usr/include -D_FLOAT_BITS_=64 -I. -I/sys -I/sys/stand/boot -I/sys/arch/amd64 -I/sys/lib/libsa -I/sys/arch/amd64/stand/libsa -I/sys/stand/efi/include -I/sys/stand/efi/include/amd64 -I/usr/include -I/usr/include/c++/v1 -std=c++11 -o efiboot.o -c ../efiboot.cc
 > 

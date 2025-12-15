@@ -37,7 +37,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //      a vast performance increase.
 #if !defined(_SIMPLELIN_)
 
-#define MFENCE() __asm__ __volatile__ ("mfence" : : : "memory")
+#define MFENCE() __asm__ __volatile__ ("mfence" : : : "memory", "rax", "rcx", "r10", "r11", "r8", "r9", "r12", "r13")
 
 // --- N.B. start approximate Lie algebra on F_2^k. ---
 // N.B. start ifloat
@@ -90,7 +90,7 @@ public:
   }
    DUInt<T,bits>& operator += (const DUInt<T,bits>& src) {
     // N.B. assembler can boost dramatically this code. but not here.
-    const T e0(max(e[0], src.e[0]));
+    const T e0(e[0] < src.e[0] ? src.e[0] : e[0]);
     e[0] += src.e[0];
     if(e[0] < e0)
       e[1] ++;
@@ -2933,9 +2933,9 @@ template <typename T>  SimpleVector<SimpleVector<T> > seepBits(const SimpleVecto
     res[j].resize(size);
     for(int k = 0; k < res[j].size(); k ++)
 #if defined(_ARCFOUR_)
-      res[j][k] = arc4random() & 1;
+      res[j][k] = arc4myrandom() & 1;
 #else
-      res[j][k] = random() & 1;
+      res[j][k] = myrandom() & 1;
 #endif
   MFENCE();
   }

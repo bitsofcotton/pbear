@@ -95,73 +95,6 @@ char n2byte(const num_t c) {
   return max(char(0), min(char(255), char(int(c * num_t(int(255)) )) ));
 }
 
-template <typename T> static inline SimpleVector<T> s2sv(const string& s) {
-  int cnt(1);
-  for(int i = 0; i < s.size(); i ++) if(s[i] == ',') cnt ++;
-  SimpleVector<T> d(cnt);
-  int i, j;
-  for(i = 0, j = 0; i < s.size() && j < d.size(); i ++, j ++) {
-    d[j] = num_t(int(0));
-    for( ; i < s.size() && s[i] == ' '; i ++) ;
-    bool sign(false);
-    if(s[i] == '-') { sign = true; i ++; }
-    for( ; i < s.size(); i ++) if('0' <= s[i] && s[i] <= '9') {
-      d[j] <<= 4;
-      d[j] += s[i] - '0';
-    } else if('a' <= s[i] && s[i] <= 'f') {
-      d[j] <<= 4;
-      d[j] += s[i] - 'a' + 10;
-    } else break;
-    if(sign) d[j] = - d[j];
-    printf("%c", s[i]);
-    if(s[i ++] != '*') goto err;
-    if(s[i ++] != '2') goto err;
-    if(s[i ++] != '^') goto err;
-    sign = false;
-    if(s[i] == '-') {
-      sign = true;
-      i ++;
-    }
-    myint e(0);
-    for( ; i < s.size(); i ++) if('0' <= s[i] && s[i] <= '9') {
-      e <<= 4;
-      e += s[i] - '0';
-    } else if('a' <= s[i] && s[i] <= 'f') {
-      e <<= 4;
-      e += s[i] - 'a' + 10;
-    } else break;
-    if(sign) e = - e;
-    d[j] <<= e;
-    for( ; i < s.size() && s[i] != ','; i ++) ;
-  }
-  return d;
- err:
-  printf("s2sv assert\n");
-  for( ; ; ) ;
-}
-
-string to_string(const myfloat& x) {
-  vector<char> buf;
-  buf.reserve(_FLOAT_BITS_ / 4);
-  myuint mm(x.m);
-  while(mm) { buf.emplace_back("0123456789abcdef"[mm & 0x0f]); mm >>= 4; }
-  string res;
-  if(x < num_t(int(0)) ) res += '-';
-  if(buf.size())
-    for(int i = 0; i < buf.size(); i ++) res += buf[buf.size() - 1 - i];
-  else res += '0';
-  res += string("*2^");
-  myint ee(x.e);
-  if(ee < 0) { res += '-'; ee = - ee; }
-  buf.resize(0);
-  buf.reserve(_FLOAT_BITS_ / 4);
-  while(ee) { buf.emplace_back("0123456789abcdef"[ee & 0x0f]); ee >>= 4; }
-  if(buf.size())
-    for(int i = 0; i < buf.size(); i ++) res += buf[buf.size() - 1 - i];
-  else res += '0';
-  return res;
-}
-
 void gm() {
   int gopmode(0);
   UINTN sz, gopsiz, bestsiz = 0;
@@ -268,8 +201,7 @@ EFI_STATUS calc() {
       vbuf[0] = nx;
       break;
     } case 'r': {
-      vbuf[0] = num_t(random() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) /
-          num_t(int(2));
+      vbuf[0] = num_t(myrandom() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) / num_t(int(2));
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
@@ -284,7 +216,7 @@ EFI_STATUS calc() {
       break;
     } }
     for(int j = 1; j < vbuf.size(); j ++)
-      vbuf[j] = random() & 1 ? - vbuf[0] : vbuf[0];
+      vbuf[j] = myrandom() & 1 ? - vbuf[0] : vbuf[0];
     b.next(unOffsetHalf<num_t>(bitsSlide<num_t>(offsetHalf<num_t>(
       vbuf * num_t(int(2)) ), bits)) );
    lnext:
@@ -296,33 +228,31 @@ EFI_STATUS calc() {
       MFENCE();
       // XXX: we need this, don't know why.
       for(int i = 0; i < b.res.size() - (p.size() - 1); i ++) {
-        string buf;
+        SimpleVector<num_t> buf(b.res[i].size() * 2);
         MFENCE();
-        for(int j = 0; j < b.res[i].size(); j ++) buf += to_string(b.res[i][j]) + string(",");
-        for(int j = 0; j < b.res[i].size(); j ++) buf += to_string(num_t(int(0))) + string(",");
-        buf += to_string(num_t(int(0)));
+        buf.O();
         MFENCE();
-        q.entity.emplace_back(s2sv<num_t>(buf));
+        buf.setVector(0, b.res[i]);
+        MFENCE();
+        q.entity.emplace_back(move(buf));
       }
       for(int i = 0; i < p.size() - 1; i ++) {
-        string buf;
+        SimpleVector<num_t> buf(p[i].size() * 2);
+        buf.O();
         MFENCE();
-        for(int j = 0; j < p[i].size(); j ++) {
-          const num_t& ref(b.res[i - (p.size() - 1) + b.res.size()][j]);
-          buf += to_string(ref - p[i][j]) + string(", ");
-        }
-        for(int j = 0; j < p[i].size() - 1; j ++)
-          buf += to_string(p[i][j]) + string(",");
-        buf += to_string(p[i][p[i].size() - 1]);
+        for(int j = 0; j < p[i].size(); j ++)
+          buf[j] = b.res[i - (p.size() - 1) + b.res.size()][j] - p[i][j];
         MFENCE();
-        q.entity.emplace_back(s2sv<num_t>(buf));
+        for(int j = 0; j < p[i].size(); j ++)
+          buf[j + p[i].size()] = p[i][j];
+        MFENCE();
+        q.entity.emplace_back(move(buf));
       }
       MFENCE();
       for(int i = 1; i < q.size(); i ++)
         for(int j = 0; j < q[i].size(); j ++) q[i][j] += q[i - 1][j];
-      q = seepBits<num_t>(q, bits);
-      for(int i = 0; i < q.size(); i ++) q[i] = unOffsetHalf<num_t>(
-        bitsG<num_t, true>(offsetHalf<num_t>(q[i]), - bits));
+      q = unOffsetHalf<num_t>(bitsG<num_t, true>(offsetHalf<num_t>(
+        seepBits<num_t>(q, bits) ), - bits));
       SimpleVector<num_t> j(q[0].size() / 2);
       j.O();
       printf("%d\n", q.size());
