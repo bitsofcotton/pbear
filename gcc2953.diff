@@ -1,0 +1,137 @@
+diff -r efiboot/cppimport.hh sys/arch/amd64/stand/efiboot/cppimport.hh
+5c5
+< template <typename T> T& move(T& x) { return static_cast<T&>(x); }
+---
+> template <typename T> T&& move(T& x) { return static_cast<T&&>(x); }
+56c56
+<   vector<T, _Allocator>(vector<T, _Allocator>& x) { initmem(); *this = x; }
+---
+>   vector<T, _Allocator>(vector<T, _Allocator>&& x) { initmem(); *this = x; }
+80c80
+<   void emplace_back(T& obj) {
+---
+>   void emplace_back(T&& obj) {
+91c91
+<   vector<T, _Allocator>& operator = (vector<T, _Allocator>& x) {
+---
+>   vector<T, _Allocator>& operator = (vector<T, _Allocator>&& x) {
+139c139
+<   string(string& x) { *this = x; }
+---
+>   string(string&& x) { *this = x; }
+149c149
+<   string& operator = (string& x) { buf = move(x.buf); return *this; }
+---
+>   string& operator = (string&& x) { buf = move(x.buf); return *this; }
+diff -r efiboot/efiboot.cc sys/arch/amd64/stand/efiboot/efiboot.cc
+19d18
+< /*
+23d21
+< */
+25c23
+< //    va_end(ap);
+---
+>     va_end(ap);
+32c30
+< //      __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
+---
+>       __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
+114c112
+<     __asm__ __volatile__ ("movl %0, %%esp; call calc;" : : "r"(stack + 64 * 1024 * 1024 - 64) );
+---
+>     asm("movq %0, %%rsp; call calc;" :: "r"(stack + 64 * 1024 * 1024 - 64) );
+125,132c123,124
+< //inline void* operator new(size_t, void* __p) noexcept { return __p; }
+< //inline void* operator new[](size_t, void* __p) noexcept { return __p; }
+< inline void* operator new(size_t, void* __p) throw() { return __p; }
+< inline void* operator new[](size_t, void* __p) throw() { return __p; }
+< inline void* operator new(size_t, void* __p) throw() { return __p; }
+< inline void* operator new[](size_t, void* __p) throw() { return __p; }
+< inline void operator delete (void *) throw() { return; }
+< inline void operator delete[] (void *) throw() { return; }
+---
+> inline void* operator new(size_t, void* __p) noexcept { return __p; }
+> inline void* operator new[](size_t, void* __p) noexcept { return __p; }
+diff -r efiboot/lieonn.hh sys/arch/amd64/stand/efiboot/lieonn.hh
+40c40
+< #define MFENCE() __asm__ __volatile__ ("nop");
+---
+> #define MFENCE() __asm__ __volatile__ ("mfence" : : : "memory", "rax", "rcx", "r10", "r11", "r8", "r9", "r12", "r13")
+231c231
+<    DUInt<T,bits>& operator =  (DUInt<T,bits>& src) {
+---
+>    DUInt<T,bits>& operator =  (DUInt<T,bits>&& src) {
+384c384
+<    SimpleFloat(SimpleFloat<T,W,bits,U>& src) { *this = src; }
+---
+>    SimpleFloat(SimpleFloat<T,W,bits,U>&& src) { *this = src; }
+518c518
+<    SimpleFloat<T,W,bits,U>& operator =  (SimpleFloat<T,W,bits,U>& src) {
+---
+>    SimpleFloat<T,W,bits,U>& operator =  (SimpleFloat<T,W,bits,U>&& src) {
+697c697
+<     typedef SimpleFloat<myuint, DUInt<uint32_t, 32>, 32, myint> myfloat;
+---
+>     typedef SimpleFloat<myuint, uint64_t, 32, myint> myfloat;
+1096,1097c1096,1097
+<    Complex(Complex<T>& s) { *this = s; }
+<    Complex(T& real) {
+---
+>    Complex(Complex<T>&& s) { *this = s; }
+>    Complex(T&& real) {
+1102c1102
+<    Complex(T& real, T& imag) {
+---
+>    Complex(T&& real, T&& imag) {
+1209c1209
+<    Complex<T>& operator =  (Complex<T>& s) {
+---
+>    Complex<T>& operator =  (Complex<T>&& s) {
+1311,1313c1311,1313
+< template <typename T> struct complexC { typedef Complex<T> type; };
+< #define complex(T) struct complexC<T>::type
+< #define complexctor(T) (complex(T))
+---
+> template <typename T> using complexC = Complex<T>;
+> #define complex(T) complexC<T>
+> #define complexctor(T) complex(T)
+1324c1324
+<    SimpleVector(SimpleVector<T>& other) { *this = other; }
+---
+>    SimpleVector(SimpleVector<T>&& other) { *this = other; }
+1379c1379
+<          SimpleVector<T>& operator =  (SimpleVector<T>& other) {
+---
+>          SimpleVector<T>& operator =  (SimpleVector<T>&& other) {
+1505c1505
+<    SimpleMatrix(SimpleMatrix<T>& other) { *this = other; }
+---
+>    SimpleMatrix(SimpleMatrix<T>&& other) { *this = other; }
+1587c1587
+<          SimpleMatrix<T>& operator =  (SimpleMatrix<T>& other) {
+---
+>          SimpleMatrix<T>& operator =  (SimpleMatrix<T>&& other) {
+2872c2872
+< template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pRS(SimpleVector<SimpleVector<T> >& intran0, const string& strloop) {
+---
+> template <typename T, int nprogress> SimpleVector<SimpleVector<T> > pRS(SimpleVector<SimpleVector<T> >&& intran0, const string& strloop) {
+2945c2945
+< template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pRS00(SimpleVector<SimpleVector<T> >& in, const string& strloop) {
+---
+> template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pRS00(SimpleVector<SimpleVector<T> >&& in, const string& strloop) {
+3116c3116
+< template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pPRNGLoEMM(SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+---
+> template <typename T, int nprogress>  SimpleVector<SimpleVector<T> > pPRNGLoEMM(SimpleVector<SimpleVector<T> >&& in, const int& bits, const string& strloop) {
+3136c3136
+< template <typename T, int nprogress>  SimpleVector<T> pPRNG(SimpleVector<SimpleVector<T> >& in, const int& bits, const string& strloop) {
+---
+> template <typename T, int nprogress>  SimpleVector<T> pPRNG(SimpleVector<SimpleVector<T> >&& in, const int& bits, const string& strloop) {
+3176c3176
+< template <typename T, int walk, int nprogress> SimpleVector<T> pred0(SimpleVector<T>& in0, int bits, const int& width = 1, const string& strloop = string("")) {
+---
+> template <typename T, int walk, int nprogress> SimpleVector<T> pred0(SimpleVector<T>&& in0, int bits, const int& width = 1, const string& strloop = string("")) {
+3249c3249
+< template <typename T, int walk, int nprogress> SimpleVector<T> pred(SimpleVector<SimpleVector<T> >& in, int bits, const string& strloop = string("")) {
+---
+> template <typename T, int walk, int nprogress> SimpleVector<T> pred(SimpleVector<SimpleVector<T> >&& in, int bits, const string& strloop = string("")) {

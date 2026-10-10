@@ -12,6 +12,8 @@ This could exclude the firmware infection after using some of the computers nor 
 
 Either there exists fwupd around linux commands, this could also exclude some of the infection matters.
 
+Otherwise, there exists flashrom, so we could inspect the uefi binary with them but they can be data stream imitated.
+
 # Little Tips (2)
 If we write the binary to some storage especially eg. micro-SD then hexdump with some another simplified *TRUSTED* hardwares, we can exclude the main machine thick stacked layers infection by reading them by our eyes.
 
@@ -27,10 +29,9 @@ This excludes whole compilation and running and showing the result paranoia into
 However, if we're in paranoia enough, the USB mass storage datastream transfer also have some matters if the whole codebase is open to attackers also if our machines' low layer started infections.
 
 # Little Tips (4)
-strip -s can size down BOOTX64.EFI size into 120Ki octets or better smaller on this implementation.
+strip -s can size down BOOTX64.EFI size into 88Ki octets or better smaller on this implementation.
 
-However, with checking by eyes the binary bit to bit, if the bitrate is the 1 bit per second, we should take around 12 days without rest by only a single person.
-We're doubting this can be done by no error by humans or not, so we should size down more.
+However, with checking by eyes the binary bit to bit, if the bitrate is the 1 bit per second, we should take around some days without rest by only a single person.
 
 # Little Tips (5)
 Whether or not we're doubting our computer physical machines, we should check the result by LoEM and continuity on ourselves, so the matter is the amount of the costs.
@@ -38,6 +39,9 @@ Whether or not we're doubting our computer physical machines, we should check th
 Only to check the result is enough reliable or not, we should calculate ourselve by hands with paper with physical separated environment will guarantee the most LoEM and continuity also the flow can be easily checked by hands because we believe it's macro scale existence.
 
 However, to calculate repeatedly or to apply large amount of the data streams, we should use the computers, in this case, the calculation speed also matters.
+
+# Little Tips (6)
+Compiling with NetBSD latest needs duplicate OpenBSD /usr/include, /usr/share/mk, /sys also needs compiler flag adjustment including -fPIC, eliminate some flags, then we need to do some phdr hack on ldscript.amd64 to link.
 
 # Closed
 Closed with embryonic intentionally. We should check by hand using single functional but enough audited calculator to check our code works or not in strictly.

@@ -1,14 +1,39 @@
-43,44d42
+20d19
+< #include <sys/queue.h>
+25,26d23
+< #include <cmd.h>
+< #include <stand/boot/bootarg.h>
+37,44d33
+< #include "efidev.h"
+< #include "efiboot.h"
+< #include "run_i386.h"
+< 
+< #define	KERN_LOADSPACE_SIZE	(64 * 1024 * 1024)
+< 
 < #define EFI_OS_INDICATIONS_BOOT_TO_FW_UI	1ULL
 < 
-49d46
+49,55c38,39
 < EFI_DEVICE_PATH		*efi_bootdp = NULL;
-59,60d55
+< EFI_PHYSICAL_ADDRESS	 heap;
+< EFI_LOADED_IMAGE	*loadedImage;
+< UINTN			 heapsiz = 1 * 1024 * 1024;
+< UINTN			 mmap_key;
+< static EFI_GUID		 imgp_guid = LOADED_IMAGE_PROTOCOL;
+< static EFI_GUID		 blkio_guid = BLOCK_IO_PROTOCOL;
+---
+> static EFI_GUID          imgp_guid = LOADED_IMAGE_PROTOCOL;
+> static EFI_GUID          blkio_guid = BLOCK_IO_PROTOCOL;
+57d40
+< u_long			 efi_loadaddr;
+59,63d41
 < int	 efi_device_path_depth(EFI_DEVICE_PATH *dp, int);
 < int	 efi_device_path_ncmp(EFI_DEVICE_PATH *, EFI_DEVICE_PATH *, int);
-68d62
+< static void	 efi_heap_init(void);
+< static int	 efi_memprobe_internal(void);
+< static int	 efi_update_bios_memmap(void);
+68d45
 < EFI_STATUS	 efi_main(EFI_HANDLE, EFI_SYSTEM_TABLE *);
-70,171d63
+70,171d46
 < void (*run_i386)(u_long, u_long, int, int, int, int, int, int, int, int)
 <     __attribute__((noreturn));
 < 
@@ -111,7 +136,7 @@
 < 	}
 < }
 < 
-173,282d64
+173,440d47
 <  * Disk
 <  ***********************************************************************/
 < struct disklist_lh efi_disklist;
@@ -222,25 +247,285 @@
 < }
 < 
 < /***********************************************************************
-349c131
+<  * Memory
+<  ***********************************************************************/
+< bios_memmap_t		 bios_memmap[128];
+< bios_efiinfo_t		 bios_efiinfo;
+< int			 bios_memmap_modified = 0;
+< 
+< static void
+< efi_heap_init(void)
+< {
+< 	EFI_STATUS	 status;
+< 
+< 	heap = HEAP_LIMIT;
+< 	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+< 	    EFI_SIZE_TO_PAGES(heapsiz), &heap);
+< 	if (status != EFI_SUCCESS)
+< 		panic("BS->AllocatePages()");
+< }
+< 
+< void
+< efi_memprobe(void)
+< {
+< 	u_int		 n = 0;
+< 	bios_memmap_t	*bm;
+< 	EFI_STATUS	 status;
+< 	EFI_PHYSICAL_ADDRESS
+< 			 addr = 0x10000000ULL;	/* Below 256MB */
+< 	int		 error;
+< 
+< 	status = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData,
+< 	    EFI_SIZE_TO_PAGES(KERN_LOADSPACE_SIZE), &addr);
+< 	if (status != EFI_SUCCESS)
+< 		panic("BS->AllocatePages()");
+< 	efi_loadaddr = addr;
+< 
+< 	printf(" mem[");
+< 	error = efi_memprobe_internal();
+< 	for (bm = bios_memmap; bm->type != BIOS_MAP_END; bm++) {
+< 		if (bm->type == BIOS_MAP_FREE && bm->size > 12 * 1024) {
+< 			if (n++ != 0)
+< 				printf(" ");
+< 			if (bm->size > 1024 * 1024)
+< 				printf("%uM", bm->size / 1024 / 1024);
+< 			else
+< 				printf("%uK", bm->size / 1024);
+< 		}
+< 	}
+< 	if (error == E2BIG)
+< 		printf(" overflow");
+< 	printf("]");
+< }
+< 
+< static int
+< efi_memprobe_internal(void)
+< {
+< 	EFI_STATUS		 status;
+< 	UINTN			 mapkey, mmsiz, siz;
+< 	UINT32			 mmver;
+< 	EFI_MEMORY_DESCRIPTOR	*mm;
+< 
+< 	if (bios_efiinfo.mmap_start != 0)
+< 		free((void *)bios_efiinfo.mmap_start, bios_efiinfo.mmap_size);
+< 
+< 	siz = 0;
+< 	status = BS->GetMemoryMap(&siz, NULL, &mapkey, &mmsiz, &mmver);
+< 	if (status != EFI_BUFFER_TOO_SMALL)
+< 		panic("cannot get the size of memory map");
 < 	mm = alloc(siz);
+< 	status = BS->GetMemoryMap(&siz, mm, &mapkey, &mmsiz, &mmver);
+< 	if (status != EFI_SUCCESS)
+< 		panic("cannot get the memory map");
+< 
+< 	mmap_key = mapkey;
+< 
+< 	bios_efiinfo.mmap_desc_ver = mmver;
+< 	bios_efiinfo.mmap_desc_size = mmsiz;
+< 	bios_efiinfo.mmap_size = siz;
+< 	bios_efiinfo.mmap_start = (uintptr_t)mm;
+< 
+< 	if (bios_memmap_modified)
+< 		return (0);
+< 
+< 	return (efi_update_bios_memmap());
+< }
+< 
+< static int
+< efi_update_bios_memmap(void)
+< {
+< 	int			 i, n, error = 0;
+< 	bios_memmap_t		*bm, bm0;
+< 	EFI_MEMORY_DESCRIPTOR	*mm;
+< 
+< 	cnvmem = extmem = 0;
+< 	bios_memmap[0].type = BIOS_MAP_END;
+< 	n = bios_efiinfo.mmap_size / bios_efiinfo.mmap_desc_size;
+< 	for (i = 0, mm = (EFI_MEMORY_DESCRIPTOR *)bios_efiinfo.mmap_start;
+< 	    i < n;
+< 	    i++, mm = NextMemoryDescriptor(mm, bios_efiinfo.mmap_desc_size)) {
+< 		bm0.type = BIOS_MAP_END;
+< 		bm0.addr = mm->PhysicalStart;
+< 		bm0.size = mm->NumberOfPages * EFI_PAGE_SIZE;
+< 		if (mm->Type == EfiReservedMemoryType ||
+< 		    mm->Type == EfiUnusableMemory ||
+< 		    mm->Type == EfiRuntimeServicesCode ||
+< 		    mm->Type == EfiRuntimeServicesData)
+< 			bm0.type = BIOS_MAP_RES;
+< 		else if (mm->Type == EfiLoaderCode ||
+< 		    mm->Type == EfiLoaderData ||
+< 		    mm->Type == EfiBootServicesCode ||
+< 		    mm->Type == EfiBootServicesData ||
+< 		    mm->Type == EfiConventionalMemory)
+< 			bm0.type = BIOS_MAP_FREE;
+< 		else if (mm->Type == EfiACPIReclaimMemory)
+< 			bm0.type = BIOS_MAP_ACPI;
+< 		else if (mm->Type == EfiACPIMemoryNVS)
+< 			bm0.type = BIOS_MAP_NVS;
+< 		else
+< 			/*
+< 			 * XXX Is there anything to do for EfiMemoryMappedIO
+< 			 * XXX EfiMemoryMappedIOPortSpace EfiPalCode?
+< 			 */
+< 			bm0.type = BIOS_MAP_RES;
+< 
+< 		for (bm = bios_memmap; bm->type != BIOS_MAP_END; bm++) {
+< 			if (bm->type != bm0.type)
+< 				continue;
+< 			if (bm->addr <= bm0.addr &&
+< 			    bm0.addr <= bm->addr + bm->size) {
+< 				bm->size = bm0.addr + bm0.size - bm->addr;
+< 				break;
+< 			} else if (bm0.addr <= bm->addr &&
+< 			    bm->addr <= bm0.addr + bm0.size) {
+< 				bm->size = bm->addr + bm->size - bm0.addr;
+< 				bm->addr = bm0.addr;
+< 				break;
+< 			}
+< 		}
+< 		if (bm->type == BIOS_MAP_END) {
+< 			if (bm == &bios_memmap[nitems(bios_memmap) - 1]) {
+< 				error = E2BIG;
+< 				break;
+< 			}
+< 			*bm = bm0;
+< 			(++bm)->type = BIOS_MAP_END;
+< 		}
+< 	}
+< 	for (bm = bios_memmap; bm->type != BIOS_MAP_END; bm++) {
+< 		if (bm->addr < IOM_BEGIN)	/* Below memory hole */
+< 			cnvmem =
+< 			    max(cnvmem, (bm->addr + bm->size) / 1024);
+< 		if (bm->addr >= IOM_END /* Above the memory hole */ &&
+< 		    bm->addr / 1024 == extmem + 1024)
+< 			extmem += bm->size / 1024;
+< 	}
+< 
+< 	return (error);
+< }
+< 
+< /***********************************************************************
+527c134
+< 	printf(" pc%d", minor(cn->cn_dev));
 ---
-> 	mm = (EFI_MEMORY_DESCRIPTOR*)alloc(siz);
-688c470
+> 	// printf(" pc%d", minor(cn->cn_dev));
+584a192,193
+> /*
+> 
+591c200
+< /* call with sp == 0 to query the current speed */
+---
+> /* call with sp == 0 to query the current speed * /
+601c210
+< 	/* valid baud rate? */
+---
+> 	/* valid baud rate? * /
+609c218
+< 	 */
+---
+> 	 * /
+614,615c223,224
+< /* ripped screaming from dev/ic/com.c */
+< #define divrnd(n, q)    (((n)*2/(q)+1)/2)       /* divide and round off */
+---
+> /* ripped screaming from dev/ic/com.c * /
+> #define divrnd(n, q)    (((n)*2/(q)+1)/2)       /* divide and round off * /
+628,630c237,239
+< 		printf("com%d: changing speed to %d baud in 5 seconds, "
+< 		    "change your terminal to match!\n\a",
+< 		    minor(dev), sp);
+---
+> 		//printf("com%d: changing speed to %d baud in 5 seconds, "
+> 		//    "change your terminal to match!\n\a",
+> 		//    minor(dev), sp);
+639c248,249
+< 		printf("\ncom%d: %d baud\n", minor(dev), sp);
+---
+> 		//printf("\ncom%d: %d baud\n", minor(dev), sp);
+> 	;
+673a284,291
+> 	cn->cn_pri = CN_LOWPRI;
+> 	cn->cn_dev = makedev(8, 0);
+> 	return;
+> }
+> 
+> void
+> efi_com_probe(struct consdev *cn)
+> {
+688c306
 < 		handles = alloc(sz);
 ---
-> 		handles = (EFI_HANDLE*)alloc(sz);
-710c492
+> 		// handles = (EFI_HANDLE*)alloc(sz);
+693c311
+< 		free(handles, sz);
+---
+> 		//free(handles, sz);
+702c320
+< 		 */
+---
+> 		 * /
+710c328
 < 			dpp = (EFI_DEV_PATH_PTR)dp;
 ---
 > 			dpp = *(EFI_DEV_PATH_PTR*)(void*)dp;
-758,759c540,541
+721c339
+< 		/* Prepare SERIAL_IO_INTERFACE */
+---
+> 		/* Prepare SERIAL_IO_INTERFACE * /
+728c346
+< 	free(handles, sz);
+---
+> 	// free(handles, sz);
+732c350,351
+< 			printf(" com%d", i);
+---
+> 			// printf(" com%d", i);
+> 			;
+758,759c377,378
 < 		    serio->Mode->Timeout, serio->Mode->Parity,
 < 		    serio->Mode->DataBits, serio->Mode->StopBits);
 ---
 > 		    serio->Mode->Timeout, (EFI_PARITY_TYPE)serio->Mode->Parity,
 > 		    serio->Mode->DataBits, (EFI_STOP_BITS_TYPE)serio->Mode->StopBits);
-868,1050d649
+761,762c380,381
+< 			printf("com%d: SetAttribute() failed with status=%d\n",
+< 			    minor(dev), status);
+---
+> 			//printf("com%d: SetAttribute() failed with status=%d\n",
+> 			//    minor(dev), status);
+766c385,386
+< 			printf("\ncom%d: %d baud\n", minor(dev), sp);
+---
+> 			//printf("\ncom%d: %d baud\n", minor(dev), sp);
+> 			;
+769c389
+< 	/* same as comspeed() in libsa/bioscons.c */
+---
+> 	/* same as comspeed() in libsa/bioscons.c * /
+780c400
+< 		/* This actually happens if the machine has another serial.  */
+---
+> 		/* This actually happens if the machine has another serial.  * /
+784c404
+< 		comspeed(cn->cn_dev, 9600); /* default speed is 9600 baud */
+---
+> 		comspeed(cn->cn_dev, 9600); /* default speed is 9600 baud * /
+838a459
+> */
+848,854d468
+< static EFI_GUID			 acpi_guid = ACPI_20_TABLE_GUID;
+< static EFI_GUID			 smbios_guid = SMBIOS_TABLE_GUID;
+< static EFI_GUID			 esrt_guid = EFI_SYSTEM_RESOURCE_TABLE_GUID;
+< static int			 gopmode = -1;
+< 
+< #define	efi_guidcmp(_a, _b)	memcmp((_a), (_b), sizeof(EFI_GUID))
+< 
+862c476,477
+< 		printf("GOP SetMode() failed (%d)\n", status);
+---
+> 		// printf("GOP SetMode() failed (%d)\n", status);
+> 		;
+868,1050d482
 < efi_makebootargs(void)
 < {
 < 	int			 i;
@@ -424,7 +709,27 @@
 < }
 < 
 < void
-1109,1299d707
+1054c486
+< 	printf("Hit any key to reboot\n");
+---
+> 	//printf("Hit any key to reboot\n");
+1061a494
+> /*
+1076c509
+< 	/* Calc days from UNIX epoch */
+---
+> 	/* Calc days from UNIX epoch * /
+1084c517
+< 	/* Calc secs */
+---
+> 	/* Calc secs * /
+1102c535
+< 	 */
+---
+> 	 * /
+1107a541
+> */
+1109,1299d542
 < #ifdef IDLE_POWEROFF
 < CHAR16		*idle_name = L"IdlePoweroff";
 < EFI_STATUS	 idle_status;

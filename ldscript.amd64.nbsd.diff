@@ -1,0 +1,4 @@
+4a5
+> PHDRS{null PT_NULL; load PT_LOAD FLAGS(5); }
+21a23
+>   .phdr : { } :headers

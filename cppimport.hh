@@ -1,14 +1,16 @@
 #if !defined(_SIMPLE_VECTOR_)
 
-#include <new>
+// #include <new>
 
 template <typename T> T&& move(T& x) { return static_cast<T&&>(x); }
 
-unsigned long long last;
-unsigned long long lastptr;
-unsigned long long sam_upper;
-unsigned long long *v_alloc;
-int *in_use;
+/*
+extern unsigned long long last;
+extern unsigned long long lastptr;
+extern unsigned long long sam_upper;
+extern unsigned long long *v_alloc;
+extern int *in_use;
+*/
 template <typename T> class SimpleAllocator {
 public:
    SimpleAllocator() { }
@@ -17,11 +19,11 @@ public:
    T* allocate(size_t n) {
     n *= sizeof(T);
     n  = (n + _SIMPLEALLOC_ - 1) / _SIMPLEALLOC_ * _SIMPLEALLOC_;
-    if(M_ALLOC <= lastptr) { printf("pool full.\n"); for(;;) ; }
+    if(M_ALLOC <= lastptr) { puts("pool full.\n"); for(;;) ; }
     v_alloc[lastptr] = n;
     in_use[lastptr ++] = 1;
     last += n;
-    if(! (last < sam_upper)) { printf("memory full.\n"); for(;;) ;}
+    if(! (last < sam_upper)) { puts("memory full.\n"); for(;;) ;}
     return reinterpret_cast<T*>(last - n);
   }
    void deallocate(T* p, size_t n) {
@@ -33,11 +35,12 @@ public:
       if((work -= v_alloc[i]) == pp) break;
       flag = flag || in_use[i];
     }
-    if(work != pp) { printf("free bug : %d, %d\n", work, pp); for(;;) ; }
+    if(work != pp) { puts("free bug\n"); for(;;) ; }
     in_use[i] ^= in_use[i];
     if(! flag) {
-      last = pp;
-      lastptr = i;
+      for(-- i; 0 < i; i --) { if(in_use[i]) break; work -= v_alloc[i]; }
+      last = work;
+      lastptr = i + 1;
     }
   }
    void destroy(T* p) { p->~T(); }
@@ -98,8 +101,8 @@ public:
     x.initmem();
     return *this;
   }
-  const T& operator [] (const size_t& idx) const { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
-  T& operator [] (const size_t& idx) { if(! (0 <= idx && idx < sz) ) { printf("ptr bug.\n"); for(;;) ; } return entity[idx]; }
+  const T& operator [] (const size_t& idx) const { if(! (0 <= idx && idx < sz) ) { puts("ptr bug.\n"); for(;;) ; } return entity[idx]; }
+  T& operator [] (const size_t& idx) { if(! (0 <= idx && idx < sz) ) { puts("ptr bug.\n"); for(;;) ; } return entity[idx]; }
   size_t size() const { return sz; }
   size_t sz;
   size_t sz_alloc;
@@ -123,7 +126,7 @@ template <typename T, typename U> pair<T, U> make_pair(const T& f, const U& s) {
 template <typename T> T abs(const T& x) { return x < T(int(0)) ? - x : x; }
 
 template <typename T> void swap(T& x, T& y) {
-  const T xx(y);
+  const T xx(x);
   x = y; y = xx;
   return;
 }
@@ -157,19 +160,8 @@ public:
 };
 
 // stub:
-string to_string(const int& x) { return string(); }
-string to_string(const size_t& x) { return string(); }
-
-// N.B. thanks to musl-1.2.3/src/prng/rand.c
-unsigned long long prng_seed(1234);
-int prng_idx(0);
-int myrandom() {
-  if(prng_idx < sizeof(prngdata) / sizeof(bool))
-    return prngdata[prng_idx ++] ? 0xffffff : 0;
-  printf("!");
-  prng_seed = 6364136223846793005ULL * prng_seed + 1;
-  return int(prng_seed >> 33);
-}
+static string to_string(const int& x) { return string(); }
+static string to_string(const size_t& x) { return string(); }
 
 #if defined(max)
 #undef max

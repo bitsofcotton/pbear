@@ -1,77 +1,105 @@
-/* p-patch parts */
 extern "C" {
+#if defined(_USERLAND_)
+#include <stdio.h>
+#include <assert.h>
+  static void cnputc(int c) { putchar(c); fflush(stdout); }
+#else
 #include <sys/types.h>
 #include "efiboot.c.punched"
+  void cnputc(int c) { efi_cons_putc(cn_tab->cn_dev, c); }
+  int cnischar(void) { return (*cn_tab->cn_getc)(cn_tab->cn_dev|0x80); }
+  static void addbootarg(int t, size_t l, void* p) { ; }
   int atexit(void (*function)(void)) { return 0; }
-  __dead void panic(const char *fmt, ...) {
+  static void puts(const char *fmt) {
+    for(int i = 0; fmt[i]; i ++) cnputc(fmt[i]);
+  }
+#endif
+  static void puthex(const int& x0) {
+    const int x(x0 < 0 ? - x0 : x0);
+    if(x0 < 0) cnputc('-');
+    for(int i = sizeof(int) * 8 - 4; 0 <= i; i -= 4)
+      cnputc("0123456789abcdef"[(i ? (x >> i) : x) & 0x0f]);
+  }
+#if !defined(_USERLAND_)
+    __dead void panic(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
-    printf("\n");
+    // vprintf(fmt, ap);
+    puts(fmt);
     va_end(ap);
     _rtt();
     /*NOTREACHED*/
   }
-  void assert(const uint64_t f) {
+  static void assert(const uint64_t f) {
     if(! f) {
       uint64_t* stack;
-      __asm__ __volatile__ ("movq %%rsp, %0\n" : "=r" (stack) :: "memory");
-      printf("assertion failed\n");
-      printf("f: %x\n", (size_t)(void*)assert);
-      for(int i = 0; i < 16; i ++)
-        printf("s: %x\n", stack[i]);
+      puts("assertion failed\n");
+      puts("f: "); puthex((size_t)(void*)assert); cnputc('\n');
+      for(int i = 0; i < 16; i ++) {
+        puthex(stack[i]); cnputc('\n');
+      }
       for(; efi_cons_getc(0) != ' ';);
       _rtt();
     }
     return;
   }
-  struct consdev constab[] = {
+  static struct consdev constab[] = {
     { efi_cons_probe, efi_cons_init, efi_cons_getc, efi_cons_putc },
-    { efi_com_probe, efi_com_init, efi_com_getc, efi_com_putc },
+    // { efi_com_probe, efi_com_init, efi_com_getc, efi_com_putc },
     { NULL }
   };
   struct consdev *cn_tab = constab;
-}
-
-const bool prngdata[] = {
+#endif
+  const bool prngdata[] = {
 //#include "prng.h"
-};
-
-#define M_ALLOC (32 * 1024 * 1024)
-#define _FLOAT_BITS_ 64
-#define _BURN_ 3
-#define _SIMPLEALLOC_ 64
-#include "cppimport.hh"
-#include "lieonn.hh"
-typedef myfloat num_t;
-
-const int pdata[] = {
+  };
+  int pdata[] = {
 #include "pdata.h"
-};
-#include "cg.h"
-
-extern "C" {
+  };
+  static unsigned long long last;
+  static unsigned long long lastptr;
+  static unsigned long long sam_upper;
+  static unsigned long long *v_alloc;
+  static int *in_use;
+  // N.B. thanks to musl-1.2.3/src/prng/rand.c
+  static unsigned long long prng_seed(1234);
+  static int prng_idx(0);
+  static int myrandom() {
+    if(prng_idx < sizeof(prngdata) / sizeof(bool))
+      return prngdata[prng_idx ++] ? 0xffffff : 0;
+    cnputc('!');
+    prng_seed = 6364136223846793005ULL * prng_seed + 1;
+    return int(prng_seed >> 33);
+  }
+  static unsigned long long pprng_seed(8765);
+  static int myprandom() {
+    pprng_seed = 6364136223846793005ULL * pprng_seed + 1;
+    return int(pprng_seed >> 33);
+  }
+#define _FLOAT_BITS_ 32
+#define M_ALLOC (32 * 1024 * 1024)
+#define _BURN_ 3
+#define _P_RAW_ 1
+#define _SIMPLEALLOC_ 64
+#if !defined(_USERLAND_)
   EFI_STATUS calc() ;
-  
-  unsigned long long simplealloc_init() {
+  static unsigned long long simplealloc_init() {
     unsigned long long heap = 0;
     EFI_STATUS status;
     status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
-      1700 * 1024 * 1024 / (4 * 1024), &heap);
+      1200 * 1024 * 1024 / (4 * 1024), &heap);
     if (status != EFI_SUCCESS)
       panic("BS->AllocatePages()");
     unsigned long long stack(heap);
     v_alloc = reinterpret_cast<unsigned long long *>(heap + 64 * 1024 * 1024);
     in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long) + 64 * 1024 * 1024);
     last    = heap + M_ALLOC * sizeof(unsigned long long) * 2 + 64 * 1024 * 1024;
-    sam_upper = heap + 1700 * 1024 * 1024;
+    sam_upper = heap + 1200 * 1024 * 1024;
     lastptr = 0;
     return stack;
   }
   
   EFI_STATUS efi_main(EFI_HANDLE image, EFI_SYSTEM_TABLE *systab) {
-    EFI_DEVICE_PATH  *dp0 = NULL;
-    EFI_LOADED_IMAGE *imgp;
     EFI_STATUS status;
     ST = systab;
     BS = ST->BootServices;
@@ -79,208 +107,219 @@ extern "C" {
     IH = image;
     BS->SetWatchdogTimer(0, 0, 0, NULL);
     efi_video_init();
-    efi_heap_init();
-    status = BS->HandleProtocol(image, &imgp_guid, (void **)&imgp);
-    if (status == EFI_SUCCESS)
-      status = BS->HandleProtocol(imgp->DeviceHandle, &devp_guid,
-        (void **)&dp0);
-    efi_memprobe();
     unsigned long long stack(simplealloc_init());
-    asm("movq %0, %%rsp; call calc;" :: "r"(stack + 64 * 1024 * 1024 - 64) );
+#if defined(IA32)
+    asm("movl %0, %%esp; call calc;" : : "r"(stack + 64 * 1024 * 1024 - 64) );
+#else
+    asm("movq %0, %%rsp; call calc;" : : "r"(stack + 64 * 1024 * 1024 - 64) );
+#endif
     return EFI_SUCCESS;
   }
+#endif
 }
 
-char n2byte(const num_t c) {
-  return max(char(0), min(char(255), char(int(c * num_t(int(255)) )) ));
+#if defined(_WITH_CLANGPP_)
+#if defined(IA32)
+void* operator new(unsigned long size);
+void* operator new[](unsigned long size);
+void* operator new(unsigned long size, void* ptr) noexcept;
+void* operator new[](unsigned long size, void* ptr) noexcept;
+#else
+void* operator new(size_t size);
+void* operator new[](size_t size);
+void* operator new(size_t size, void* ptr) noexcept;
+void* operator new[](size_t size, void* ptr) noexcept;
+#endif
+#elif defined(_WITH_GPP_)
+#if defined(IA32)
+inline void* operator new(long unsigned int, void* __p) noexcept { return __p; }
+inline void* operator new[](long unsigned int, void* __p) noexcept { return __p; }
+#else
+inline void* operator new(size_t, void* __p) noexcept { return __p; }
+inline void* operator new[](size_t, void* __p) noexcept { return __p; }
+#endif
+#else
+#include <new>
+#endif
+
+namespace {
+#include "cppimport.hh"
+#include "lieonn.hh"
+typedef myfloat num_t;
+
+static void show3(const num_t& x) {
+  cnputc(x == num_t(int(0)) ? '0' : (x < num_t(int(0)) ? '-' : '+'));
 }
 
-void gm() {
-  int gopmode(0);
-  UINTN sz, gopsiz, bestsiz = 0;
-  EFI_GRAPHICS_OUTPUT_MODE_INFORMATION *gopi;
-  for (int i = 0; i < gop->Mode->MaxMode; i++) {
-    EFI_STATUS status = gop->QueryMode(gop, i, &sz, &gopi);
-    if (EFI_ERROR(status))
-      continue;
-    gopsiz = gopi->HorizontalResolution *
-      gopi->VerticalResolution;
-    if (gopsiz > bestsiz) {
-      gopmode = i;
-      bestsiz = gopsiz;
-    }
-  }
-  if (gopmode >= 0 && gopmode != gop->Mode->Mode) {
-    int curmode = gop->Mode->Mode;
-    if (efi_gop_setmode(gopmode) != EFI_SUCCESS)
-      (void)efi_gop_setmode(curmode);
-  }
-  return;
+static void showOut(const num_t& sum, int& ctr, int& tctr) {
+  if(sum != num_t(int(0))) tctr ++;
+  if(num_t(int(0)) < sum) ctr ++;
+  const num_t rr(num_t(2 * ctr) / num_t(max(int(tctr), int(1))) - num_t(int(1)) );
+  puthex(tctr);
+  cnputc(':');
+  puthex(int(rr  * num_t(int(0x1000))) );
+  cnputc('\n');
 }
 
-void setPixel(const int& y, const int& x, const num_t& r, const num_t& g, const num_t& b) {
-  const int& height(gop->Mode->Info->VerticalResolution);
-  const int& width(gop->Mode->Info->HorizontalResolution);
-  EFI_PHYSICAL_ADDRESS fb(gop->Mode->FrameBufferBase);
-  reinterpret_cast<unsigned long*>(fb)[(y % height) * width + (x % width)] = n2byte(r) | (n2byte(g) << 8) | (n2byte(b) << 16);
 }
 
+#if defined(_USERLAND_)
+int main(int argc, char* argv[]) {
+  unsigned long long heap = (unsigned long long)malloc(1200 * 1024 * 1024);
+  unsigned long long stack(heap);
+  v_alloc = reinterpret_cast<unsigned long long *>(heap + 32 * 1024 * 1024);
+  in_use  = reinterpret_cast<int*>(heap + M_ALLOC * sizeof(unsigned long long) + 32 * 1024 * 1024);
+  last    = heap + M_ALLOC * sizeof(unsigned long long) * 2 + 32 * 1024 * 1024;
+  sam_upper = heap + 1200 * 1024 * 1024;
+  lastptr = 0;
+#else
 EFI_STATUS calc() {
-  printf("preparing...\n");
+#endif
+  puts("preparing...");
+  const int cols(2);
+  const int length(loop22<num_t>() + 2 + (1 << cols));
+  const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
+  puthex(bmsqpi.m); puthex(bmsqpi.e);
+ mode:
+#if defined(_USERLAND_)
+  const int m('r');
+  for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
+#else
+  int m('r');
+  puts("mode? (n for number | r for prng | k for keyboard [a-z])\n");
+  while(true) switch(m = efi_cons_getc(0)) { case 'n': case 'r': case 'k': goto bbreak; }
+ bbreak:
+  for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
+#endif
   int ctr(0);
   int tctr(0);
-  int length(0);
-  int m('r');
-  const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
-  printf("mem usage temporal efficiency nil: %d, %d\n", bmsqpi.m, bmsqpi.e);
-  pncr_cp = SimpleAllocator<vector<vector<SimpleVector<myfloat> > > >().allocate(1);
-  ::new ((void*)pncr_cp) vector<vector<SimpleVector<myfloat> > >();
- mode:
-  printf("mode? (n for number | r for prng | k for keyboard [a-z] | d for pdata.h | g for cg.h)\n");
-  while(true)
-    switch(m = efi_cons_getc(0)) { case 'g': case 'n': case 'r': case'k': case'd': goto bbreak; }
- bbreak:
-  if(m == 'g') {
-    pncr_cp->resize(cg_n + 1);
-    for(int i = 1; i <= cg_n; i ++) {
-      (*pncr_cp)[i].resize(2);
-      (*pncr_cp)[i][1].resize(i);
-      const int& size(i);
-      const int  step(1);
-      const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
-      for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
-      printf("%d:", (*pncr_cp)[i][1].size());
-    }
-    SimpleVector<SimpleVector<num_t> > d(cg_n);
-    for(int i = 0; i < d.size(); i ++) {
-      d[i].resize(cg_height * cg_width);
-      for(int j = 0; j < d[i].size(); j ++) d[i][j] = num_t(cg[i][j]);
-    }
-    SimpleVector<num_t> p(normalize<num_t>(pPRNG<num_t, 0>(normalize<num_t>(d), 8, string("") )));
-    printf("done\n");
-    for(int i = 0; i < p.size(); i ++) printf("%d ", int(p[i] * num_t(int(255)) ));
-    printf("\n");
-    gm();
-    for(int i = 0; i < p.size() / cg_width; i ++)
-      for(int j = 0; j < cg_width; j ++)
-        setPixel(i, j, p[i * cg_width + j], p[i * cg_width + j], p[i * cg_width + j]);
-    while(efi_cons_getc(0) != ' ') ;
-    goto mode;
-  }
-  printf("mode: %c, length? \n", m);
-  while(true) {
-    int buf(efi_cons_getc(0) - '0');
-    if(0 <= buf && buf < 10) length = length * 10 + buf;
-    else break;
-  }
-  printf("length: %d\n", length);
-  pncr_cp->resize(length + 1);
-  for(int i = 1; i <= length; i ++) {
-    (*pncr_cp)[i].resize(2);
-    (*pncr_cp)[i][1].resize(i);
-    const int& size(i);
-    const int  step(1);
-    const SimpleVector<num_t> w((dft<num_t>(- size) * (dft<num_t>(size * 2).subMatrix(0, 0, size, size * 2) * taylorc<num_t>(size * 2, num_t(step < 0 ? step * 2 : (size + step) * 2 - 1), num_t(step < 0 ? step * 2 + 2 : (size + step) * 2 - 3)) )).template real<num_t>());
-    for(int j = 0; j < w.size(); j ++) (*pncr_cp)[i][1][j] = w[j];
-    printf("%d:", (*pncr_cp)[i][1].size());
-  }
-  const int bits(8);
+  SimpleVector<num_t> M0(_BURN_ * cols);
+  SimpleVector<num_t> M1(M0.size());
+  SimpleVector<num_t> M2(M0.size());
+  SimpleVector<num_t> Mcali(M0.size());
+  M0.O(); M1.O(); M2.O(); Mcali.O();
+  idFeeder<SimpleVector<num_t> > D0(length);
+  idFeeder<SimpleVector<num_t> > D1(0);
+  idFeeder<SimpleVector<num_t> > D2(0);
+  D1.res.entity.reserve(8000);
+  D2.res.entity.reserve(8000);
   for(int lc = 0; 0 <= lc; lc ++) {
-    idFeeder<SimpleVector<num_t> > b(length);
-    for( ; 0 <= lc; lc ++) {
-    SimpleVector<num_t> vbuf(_BURN_);
+    const SimpleVector<num_t> bMcali(Mcali);
+          SimpleVector<num_t> vbuf(M0.size() * 3);
     vbuf.O();
     switch(m) {
     case 'n': {
       char buf[0x200];
       int i;
+#if !defined(_USERLAND_)
       for(i = 0; i < sizeof(buf) - 1; i ++)
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
+#endif
       buf[i] = '\0';
       num_t nx;
       vbuf[0] = nx;
       break;
     } case 'r': {
-      vbuf[0] = num_t(myrandom() & 0x1fff) / num_t(0x1fff) - num_t(int(1)) / num_t(int(2));
+      for(int i = 0; i < cols; i ++)
+        vbuf[i] = myrandom() & 1 ? - num_t(int(1)) : num_t(int(1));
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
-      vbuf[0] = (num_t(pdata[lc]) - num_t(int(999)) / num_t(int(2))) / num_t(int(1000));
+      for(int i = 0; i < cols; i ++) {
+        vbuf[i] = (num_t(pdata[lc]) - num_t(int(999)) / num_t(int(2))) /
+          num_t(int(1000));
+        pdata[lc] <<= 1;
+        pdata[lc]  |= pdata[lc] >> 10;
+        pdata[lc]  &= (1LL << 10) - 1;
+      }
       break;
+#if !defined(_USERLAND_)
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
-        vbuf[0] = num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
-            num_t(int(2));
+        vbuf[0] = sgn<num_t>(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
+            num_t(int(2)));
       } else goto lnext;
       break;
+#endif
     } }
-    for(int j = 1; j < vbuf.size(); j ++)
-      vbuf[j] = myrandom() & 1 ? - vbuf[0] : vbuf[0];
-    b.next(unOffsetHalf<num_t>(bitsSlide<num_t>(offsetHalf<num_t>(
-      vbuf * num_t(int(2)) ), bits)) );
-   lnext:
-    if(b.full) {
-      b.res = delta<SimpleVector<num_t> >(b.res);
-      SimpleVector<SimpleVector<num_t> > p(pRS00<num_t, 0>(offsetHalf<num_t>(
-        normalizeS<num_t>(b.res).first), string("")));
-      SimpleVector<SimpleVector<num_t> > q;
-      MFENCE();
-      // XXX: we need this, don't know why.
-      for(int i = 0; i < b.res.size() - (p.size() - 1); i ++) {
-        SimpleVector<num_t> buf(b.res[i].size() * 2);
-        MFENCE();
-        buf.O();
-        MFENCE();
-        buf.setVector(0, b.res[i]);
-        MFENCE();
-        q.entity.emplace_back(move(buf));
+    for(int i = 1; i < _BURN_; i ++)
+      for(int j = 0; j < cols; j ++)
+        vbuf[i * cols + j] = myprandom() & 1 ? - vbuf[j] : vbuf[j];
+    vbuf.setVector(M0.size(), mother<num_t>(vbuf.subVector(0, M0.size() )));
+    vbuf.setVector(M0.size() * 2, mother<num_t>(vbuf.subVector(M0.size(), M0.size() )));
+    Mcali = M0.tdot(vbuf.subVector(0, M0.size()) );
+    {
+      const SimpleVector<num_t> vp(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali).tdot(M1 + M2) );
+      for(int i = 0; i < cols; i ++) {
+        num_t vpsum(int(0));
+        for(int j = 0; j < _BURN_; j ++) vpsum += vp[j * cols + i];
+        show3(vpsum);
+        if(D2.full && 1 < D2.res.size()) showOut(vpsum, ctr, tctr);
       }
-      for(int i = 0; i < p.size() - 1; i ++) {
-        SimpleVector<num_t> buf(p[i].size() * 2);
-        buf.O();
-        MFENCE();
-        for(int j = 0; j < p[i].size(); j ++)
-          buf[j] = b.res[i - (p.size() - 1) + b.res.size()][j] - p[i][j];
-        MFENCE();
-        for(int j = 0; j < p[i].size(); j ++)
-          buf[j + p[i].size()] = p[i][j];
-        MFENCE();
-        q.entity.emplace_back(move(buf));
-      }
-      MFENCE();
-      for(int i = 1; i < q.size(); i ++)
-        for(int j = 0; j < q[i].size(); j ++) q[i][j] += q[i - 1][j];
-      q = unOffsetHalf<num_t>(bitsG<num_t, true>(offsetHalf<num_t>(
-        seepBits<num_t>(q, bits) ), - bits));
-      SimpleVector<num_t> j(q[0].size() / 2);
-      j.O();
-      printf("%d\n", q.size());
-      for(int i = 0; i < q.size(); i ++) {
-        MFENCE();
-        num_t sum(int(0));
-        SimpleVector<num_t> buf(q[i].size() / 2);
-        for(int k = 0; k < buf.size(); k ++)
-          buf[k] = (q[i][k] + q[i][k + q[i].size() / 2]) *
-            q[i][k + q[i].size() / 2];
-        for(int k = 0; k < buf.size(); k ++)
-          sum += j[k] < num_t(int(0)) ? - buf[k] : buf[k];
-        tctr ++;
-        if(sum == num_t(int(0))) tctr --;
-        if(num_t(int(0)) < sum) ctr ++;
-        const num_t rr(num_t(2 * ctr) / num_t(max(int(tctr), int(1))) - num_t(int(1)) );
-        printf("%c%d: %c0.%04d\r\n\0", m, lc, rr < num_t(int(0)) ? '-' : ' ',
-          int(abs(rr) * num_t(int(10000)) ) );
-        for(int k = 0; k < buf.size(); k ++)
-          j[k] += buf[k];
-      }
-      goto lcnext;
     }
+    D0.next(vbuf);
+    if(D0.full) {
+      D1.next(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali) );
+      if(D1.full) {
+        D2.next(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali) - M1);
+        M1 = p0maxNext<num_t>(D1.res);
+        M2 = p0maxNext<num_t>(D2.res);
+      }
+      pair<SimpleVector<SimpleVector<num_t> >, num_t> d0(normalizeS<num_t>(
+        D0.res) );
+      M0 += predMasp<num_t, 20>(move(d0.first), 2, string("")).subVector(0,
+        M0.size() ) * d0.second;
     }
-   lcnext: ;
+   lnext: ;
   }
  bbbreak:
+#if defined(_USERLAND_)
+  return 0;
+#else
   goto mode;
   return EFI_SUCCESS;
+#endif
 }
+
+// google search (2026/05/11) results:
+/*
+// cl.exe /c /Zl /W3 main.c # /GS-
+// link.exe /nodefaultlib /subsystem:10 /entry:EfiMain /machine:IX86 /out:boootia32.efi main.obj
+// EFI System Table
+typedef struct _EFI_SIMPLE_TEXT_OUTPUT_INTERFACE {
+    void* Reset;
+    long (*OutputString)(struct _EFI_SIMPLE_TEXT_OUTPUT_INTERFACE*, unsigned short*);
+} EFI_SIMPLE_TEXT_OUTPUT_INTERFACE;
+
+typedef struct {
+    char Header[44];
+    EFI_SIMPLE_TEXT_OUTPUT_INTERFACE *ConOut;
+} EFI_SYSTEM_TABLE;
+
+long __stdcall EfiMain(void* ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
+  SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Hello VC6 EFI!\r\n");
+  while(1);
+  return 0;
+}
+
+// we abandoned this vc++ 6.0 compatible code outputs bootia32.efi because
+// we don't have 2006-2007 imac/macbook nor 2006-2007 UMPC cf. sony which
+// boots bootia32.efi in bare metal.
+// we can test bootia32.efi with qemu with pflash=... options but this is on
+// base system qemu things.
+//
+// so we test only very easy electro magnetic champer like alminium foil wrapped
+// battery powered laptop pc on the calculation also gets same result, we stop
+// to implement low level implementations other than this efiboot.cc.
+//
+// there's another selections for bare metals s.t. some consumer game console
+// with un*x systems nor some chips we didn't test : ppc64, riscv64, loongson,
+// esp, sh4, etc etc... but test with them is only to ease our mind because
+// the terminal we implement and compile MUST not be infected if this is false
+// positive also from the infections. in the case, we should calculate raw
+// data stream with analogue dice and analogue abacuses with pen and papers,
+// which can be exchanged by some of the another actors. 
+// --- if we start to doubt anything, there's no end to it. ---
+*/
 
