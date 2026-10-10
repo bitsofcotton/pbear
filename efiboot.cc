@@ -196,15 +196,23 @@ EFI_STATUS calc() {
   SimpleVector<num_t> M0(_BURN_ * cols);
   SimpleVector<num_t> M1(M0.size());
   SimpleVector<num_t> M2(M0.size());
+  SimpleVector<num_t> M3(M0.size());
   SimpleVector<num_t> Mcali(M0.size());
-  M0.O(); M1.O(); M2.O(); Mcali.O();
+  SimpleVector<num_t> Mcali2(M0.size());
+  M0.O(); M1.O(); M2.O(); M3.O(); Mcali.O(); Mcali2.O();
   idFeeder<SimpleVector<num_t> > D0(length);
   idFeeder<SimpleVector<num_t> > D1(0);
   idFeeder<SimpleVector<num_t> > D2(0);
+  idFeeder<SimpleVector<num_t> > D3(0);
   D1.res.entity.reserve(8000);
   D2.res.entity.reserve(8000);
+  D3.res.entity.reserve(8000);
+#if !defined(_USERLAND_)
+  (* pncr_cp).reserve(8000);
+#endif
   for(int lc = 0; 0 <= lc; lc ++) {
     const SimpleVector<num_t> bMcali(Mcali);
+    const SimpleVector<num_t> bMcali2(Mcali2);
           SimpleVector<num_t> vbuf(M0.size() * 3);
     vbuf.O();
     switch(m) {
@@ -248,9 +256,9 @@ EFI_STATUS calc() {
         vbuf[i * cols + j] = myprandom() & 1 ? - vbuf[j] : vbuf[j];
     vbuf.setVector(M0.size(), mother<num_t>(vbuf.subVector(0, M0.size() )));
     vbuf.setVector(M0.size() * 2, mother<num_t>(vbuf.subVector(M0.size(), M0.size() )));
-    Mcali = M0.tdot(vbuf.subVector(0, M0.size()) );
     {
-      const SimpleVector<num_t> vp(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali).tdot(M1 + M2) );
+      const SimpleVector<num_t> vp((Mcali2 = (Mcali = vbuf.subVector(0,
+        M0.size()).tdot(M0)).tdot(M2 + M3).tdot(bMcali)).tdot(bMcali2));
       for(int i = 0; i < cols; i ++) {
         num_t vpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) vpsum += vp[j * cols + i];
@@ -260,16 +268,21 @@ EFI_STATUS calc() {
     }
     D0.next(vbuf);
     if(D0.full) {
-      D1.next(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali) );
+      D1.next(Mcali.tdot(bMcali) );
       if(D1.full) {
-        D2.next(vbuf.subVector(0, M0.size()).tdot(M0).tdot(bMcali) - M1);
+        D2.next(Mcali.tdot(bMcali) - M1);
+        D3.next(M1);
         M1 = p0maxNext<num_t>(D1.res);
         M2 = p0maxNext<num_t>(D2.res);
+        M3 = p0maxNext<num_t>(D3.res);
       }
       pair<SimpleVector<SimpleVector<num_t> >, num_t> d0(normalizeS<num_t>(
         D0.res) );
       M0 += predMasp<num_t, 20>(move(d0.first), 2, string("")).subVector(0,
         M0.size() ) * d0.second;
+#if !defined(_USERLAND_)
+      (* pncr_cp).resize(length);
+#endif
     }
    lnext: ;
   }
