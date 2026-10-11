@@ -197,9 +197,8 @@ EFI_STATUS calc() {
   SimpleVector<num_t> M1(M0.size());
   SimpleVector<num_t> M2(M0.size());
   SimpleVector<num_t> M3(M0.size());
-  SimpleVector<num_t> Mcali(M0.size());
-  SimpleVector<num_t> Mcali2(M0.size());
-  M0.O(); M1.O(); M2.O(); M3.O(); Mcali.O(); Mcali2.O();
+  SimpleVector<num_t> Mcali(cols);
+  M0.O(); M1.O(); M2.O(); M3.O(); Mcali.O();
   idFeeder<SimpleVector<num_t> > D0(length);
   idFeeder<SimpleVector<num_t> > D1(0);
   idFeeder<SimpleVector<num_t> > D2(0);
@@ -211,16 +210,16 @@ EFI_STATUS calc() {
   (* pncr_cp).reserve(8000);
 #endif
   for(int lc = 0; 0 <= lc; lc ++) {
-    const SimpleVector<num_t> bMcali(Mcali);
-    const SimpleVector<num_t> bMcali2(Mcali2);
-          SimpleVector<num_t> vbuf(M0.size() * 3);
+    SimpleVector<num_t> vbuf(M0.size() * 3);
     vbuf.O();
     switch(m) {
     case 'n': {
       char buf[0x200];
       int i;
-#if !defined(_USERLAND_)
       for(i = 0; i < sizeof(buf) - 1; i ++)
+#if defined(_USERLAND_)
+        if((buf[i] = getchar()) == '\n') break;
+#else
         if((buf[i] = efi_cons_getc(0)) == '\n') break;
 #endif
       buf[i] = '\0';
@@ -251,26 +250,28 @@ EFI_STATUS calc() {
       break;
 #endif
     } }
-    for(int i = 1; i < _BURN_; i ++)
-      for(int j = 0; j < cols; j ++)
-        vbuf[i * cols + j] = myprandom() & 1 ? - vbuf[j] : vbuf[j];
+    for(int i = 1; i < _BURN_; i ++) for(int j = 0; j < cols; j ++)
+      vbuf[i * cols + j] = myprandom() & 1 ? - vbuf[j] : vbuf[j];
+    vbuf.setVector(0, offsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
     vbuf.setVector(M0.size(), mother<num_t>(vbuf.subVector(0, M0.size() )));
-    vbuf.setVector(M0.size() * 2, mother<num_t>(vbuf.subVector(M0.size(), M0.size() )));
-    {
-      const SimpleVector<num_t> vp((Mcali2 = (Mcali = vbuf.subVector(0,
-        M0.size()).tdot(M0)).tdot(M2 + M3).tdot(bMcali)).tdot(bMcali2));
-      for(int i = 0; i < cols; i ++) {
-        num_t vpsum(int(0));
-        for(int j = 0; j < _BURN_; j ++) vpsum += vp[j * cols + i];
-        show3(vpsum);
-        if(D2.full && 1 < D2.res.size()) showOut(vpsum, ctr, tctr);
-      }
-    }
+    vbuf.setVector(M0.size() * 2, mother<num_t>(vbuf.subVector(M0.size(),
+      M0.size() )));
     D0.next(vbuf);
+    vbuf.setVector(0, unOffsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
+    for(int i = 0; i < cols; i ++) {
+      num_t vpsum(int(0));
+      for(int j = 0; j < _BURN_; j ++) {
+        const int ii(j * cols + i);
+        vpsum += vbuf[ii] * M0[ii] * (M2[ii] + M3[ii]);
+      }
+      show3(vpsum * Mcali[i]);
+      if(D2.full && 1 < D2.res.size()) showOut(vpsum * Mcali[i], ctr, tctr);
+      Mcali[i] = vpsum;
+    }
     if(D0.full) {
-      D1.next(Mcali.tdot(bMcali) );
+      D1.next(vbuf.subVector(0, M0.size()).tdot(M0));
       if(D1.full) {
-        D2.next(Mcali.tdot(bMcali) - M1);
+        D2.next(vbuf.subVector(0, M0.size()).tdot(M0) - M1);
         D3.next(M1);
         M1 = p0maxNext<num_t>(D1.res);
         M2 = p0maxNext<num_t>(D2.res);
@@ -278,12 +279,12 @@ EFI_STATUS calc() {
       }
       pair<SimpleVector<SimpleVector<num_t> >, num_t> d0(normalizeS<num_t>(
         D0.res) );
-      M0 += predMasp<num_t, 20>(move(d0.first), 2, string("")).subVector(0,
-        M0.size() ) * d0.second;
-#if !defined(_USERLAND_)
-      (* pncr_cp).resize(length);
-#endif
+      M0 += unOffsetHalf<num_t>(predMasp<num_t, 20>(move(d0.first), 2,
+        string("")).subVector(0, M0.size() ) ) * d0.second;
     }
+#if !defined(_USERLAND_)
+    pncr_cp->resize(length);
+#endif
    lnext: ;
   }
  bbbreak:
