@@ -138,7 +138,7 @@ inline void* operator new[](size_t, void* __p) noexcept { return __p; }
 #include <new>
 #endif
 
-#define _BURN_ 12
+#define _BURN_ 15
 #define _P_RAW_ 1
 #define _FLOAT_BITS_ 32
 #define _SIMPLEALLOC_ 64
@@ -176,7 +176,7 @@ int main(int argc, char* argv[]) {
 EFI_STATUS calc() {
 #endif
   puts("preparing...");
-  const int cols(2);
+  const int cols(1);
   const int length(loop22<num_t>() + 2 + (1 << cols));
   const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
   puthex(bmsqpi.m); puthex(bmsqpi.e);
@@ -198,15 +198,25 @@ EFI_STATUS calc() {
   SimpleVector<num_t> M1(M0.size());
   SimpleVector<num_t> M2(M0.size());
   SimpleVector<num_t> M3(M0.size());
-  SimpleVector<num_t> Mcali(cols);
-  M0.O(); M1.O(); M2.O(); M3.O(); Mcali.O();
+  SimpleVector<num_t> M4(cols);
+  SimpleVector<num_t> M5(M4.size());
+  SimpleVector<num_t> M6(M4.size());
+  SimpleVector<num_t> Mcali(M4.size());
+  SimpleVector<num_t> Mcali2(M4.size());
+  M0.O(); M1.O(); M2.O(); M3.O(); M4.O(); M5.O(); M6.O(); Mcali.O(); Mcali2.O();
   idFeeder<SimpleVector<num_t> > D0(length);
   idFeeder<SimpleVector<num_t> > D1(0);
   idFeeder<SimpleVector<num_t> > D2(0);
   idFeeder<SimpleVector<num_t> > D3(0);
+  idFeeder<SimpleVector<num_t> > D4(0);
+  idFeeder<SimpleVector<num_t> > D5(0);
+  idFeeder<SimpleVector<num_t> > D6(0);
   D1.res.entity.reserve(8000);
   D2.res.entity.reserve(8000);
   D3.res.entity.reserve(8000);
+  D4.res.entity.reserve(8000);
+  D5.res.entity.reserve(8000);
+  D6.res.entity.reserve(8000);
 #if !defined(_USERLAND_)
   pncr_cp->reserve(8000);
 #endif
@@ -259,17 +269,32 @@ EFI_STATUS calc() {
       M0.size() )));
     D0.next(vbuf);
     vbuf.setVector(0, unOffsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
-    for(int i = 0; i < cols; i ++) {
-      num_t vpsum(int(0));
-      num_t rvpsum(int(0));
-      for(int j = 0; j < _BURN_; j ++) {
-        const int ii(j * cols + i);
-        vpsum  += M2[ii] + M3[ii];
-        rvpsum += vbuf[ii] * M0[ii];
+    {
+      SimpleVector<num_t> work(cols);
+      work.O();
+      for(int i = 0; i < cols; i ++) {
+        num_t vpsum(int(0));
+        num_t rvpsum(int(0));
+        for(int j = 0; j < _BURN_; j ++) {
+          const int ii(j * cols + i);
+          vpsum  += M2[ii] + M3[ii];
+          rvpsum += vbuf[ii] * M0[ii];
+        }
+        work[i] = (vpsum *= rvpsum) * Mcali[i];
+        Mcali[i] = vpsum;
       }
-      show3((vpsum *= rvpsum) * Mcali[i]);
-      if(D2.full && 1 < D2.res.size()) showOut(vpsum * Mcali[i], ctr, tctr);
-      Mcali[i] = vpsum;
+      D4.next(work);
+      D5.next(work - M4);
+      D6.next(M4);
+      work = work.tdot(M5 + M6);
+      for(int i = 0; i < cols; i ++) {
+        show3(work[i] * Mcali2[i]);
+        if(D6.full && 1 < D6.res.size()) showOut(work[i] * Mcali2[i], ctr, tctr);
+      }
+      Mcali2 = const_cast<const SimpleVector<num_t>&>(work);
+      M4 = p0maxNext<num_t>(D4.res);
+      M5 = p0maxNext<num_t>(D5.res);
+      M6 = p0maxNext<num_t>(D6.res);
     }
     if(D0.full) {
       D1.next(vbuf.subVector(0, M0.size()).tdot(M0));
