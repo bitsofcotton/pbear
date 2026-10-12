@@ -76,11 +76,7 @@ extern "C" {
     pprng_seed = 6364136223846793005ULL * pprng_seed + 1;
     return int(pprng_seed >> 33);
   }
-#define _FLOAT_BITS_ 32
 #define M_ALLOC (32 * 1024 * 1024)
-#define _BURN_ 3
-#define _P_RAW_ 1
-#define _SIMPLEALLOC_ 64
 #if !defined(_USERLAND_)
   EFI_STATUS calc() ;
   static unsigned long long simplealloc_init() {
@@ -142,6 +138,10 @@ inline void* operator new[](size_t, void* __p) noexcept { return __p; }
 #include <new>
 #endif
 
+#define _BURN_ 12
+#define _P_RAW_ 1
+#define _FLOAT_BITS_ 32
+#define _SIMPLEALLOC_ 64
 namespace {
 #include "cppimport.hh"
 #include "lieonn.hh"
@@ -180,14 +180,15 @@ EFI_STATUS calc() {
   const int length(loop22<num_t>() + 2 + (1 << cols));
   const num_t bmsqpi(binMargin<num_t>(sqrt(num_t().pi()) / num_t(int(4))));
   puthex(bmsqpi.m); puthex(bmsqpi.e);
- mode:
 #if defined(_USERLAND_)
   const int m('r');
   for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
 #else
+ mode:
   int m('r');
   puts("mode? (n for number | r for prng | k for keyboard [a-z])\n");
-  while(true) switch(m = efi_cons_getc(0)) { case 'n': case 'r': case 'k': goto bbreak; }
+  while(true) switch(m = efi_cons_getc(0)) {
+    case 'n': case 'r': case 'k': goto bbreak; }
  bbreak:
   for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
 #endif
@@ -207,7 +208,7 @@ EFI_STATUS calc() {
   D2.res.entity.reserve(8000);
   D3.res.entity.reserve(8000);
 #if !defined(_USERLAND_)
-  (* pncr_cp).reserve(8000);
+  pncr_cp->reserve(8000);
 #endif
   for(int lc = 0; 0 <= lc; lc ++) {
     SimpleVector<num_t> vbuf(M0.size() * 3);
@@ -260,11 +261,13 @@ EFI_STATUS calc() {
     vbuf.setVector(0, unOffsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
     for(int i = 0; i < cols; i ++) {
       num_t vpsum(int(0));
+      num_t rvpsum(int(0));
       for(int j = 0; j < _BURN_; j ++) {
         const int ii(j * cols + i);
-        vpsum += vbuf[ii] * M0[ii] * (M2[ii] + M3[ii]);
+        vpsum  += M2[ii] + M3[ii];
+        rvpsum += vbuf[ii] * M0[ii];
       }
-      show3(vpsum * Mcali[i]);
+      show3((vpsum *= rvpsum) * Mcali[i]);
       if(D2.full && 1 < D2.res.size()) showOut(vpsum * Mcali[i], ctr, tctr);
       Mcali[i] = vpsum;
     }
@@ -279,7 +282,7 @@ EFI_STATUS calc() {
       }
       pair<SimpleVector<SimpleVector<num_t> >, num_t> d0(normalizeS<num_t>(
         D0.res) );
-      M0 += unOffsetHalf<num_t>(predMasp<num_t, 20>(move(d0.first), 2,
+      M0 = unOffsetHalf<num_t>(predMasp<num_t, 20>(move(d0.first), 2,
         string("")).subVector(0, M0.size() ) ) * d0.second;
     }
 #if !defined(_USERLAND_)
