@@ -138,7 +138,7 @@ inline void* operator new[](size_t, void* __p) noexcept { return __p; }
 #include <new>
 #endif
 
-#define _BURN_ 15
+#define _BURN_ 11
 #define _P_RAW_ 1
 #define _FLOAT_BITS_ 32
 #define _SIMPLEALLOC_ 64
@@ -192,35 +192,30 @@ EFI_STATUS calc() {
  bbreak:
   for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
 #endif
-  int ctr(0);
-  int tctr(0);
+  const int Mlen(max(length + 15, int(sizeof(pdata) / sizeof(int)) ));
   SimpleVector<num_t> M0(_BURN_ * cols);
-  SimpleVector<num_t> M1(M0.size());
-  SimpleVector<num_t> M2(M0.size());
-  SimpleVector<num_t> M3(M0.size());
-  SimpleVector<num_t> M4(cols);
-  SimpleVector<num_t> M5(M4.size());
-  SimpleVector<num_t> M6(M4.size());
-  SimpleVector<num_t> Mcali(M4.size());
-  SimpleVector<num_t> Mcali2(M4.size());
-  M0.O(); M1.O(); M2.O(); M3.O(); M4.O(); M5.O(); M6.O(); Mcali.O(); Mcali2.O();
+  M0.O();
   idFeeder<SimpleVector<num_t> > D0(length);
   idFeeder<SimpleVector<num_t> > D1(0);
-  idFeeder<SimpleVector<num_t> > D2(0);
-  idFeeder<SimpleVector<num_t> > D3(0);
-  idFeeder<SimpleVector<num_t> > D4(0);
-  idFeeder<SimpleVector<num_t> > D5(0);
-  idFeeder<SimpleVector<num_t> > D6(0);
-  D1.res.entity.reserve(8000);
-  D2.res.entity.reserve(8000);
-  D3.res.entity.reserve(8000);
-  D4.res.entity.reserve(8000);
-  D5.res.entity.reserve(8000);
-  D6.res.entity.reserve(8000);
+  D1.res.entity.reserve(Mlen);
 #if !defined(_USERLAND_)
-  pncr_cp->reserve(8000);
+  pncr_cp->reserve(Mlen);
 #endif
-  for(int lc = 0; 0 <= lc; lc ++) {
+#if 0
+    int ctr(0);
+    int tctr(0);
+    SimpleVector<num_t> M1(M0.size());
+    SimpleVector<num_t> M2(M0.size());
+    SimpleVector<num_t> M3(M0.size());
+    M1.O(); M2.O(); M3.O();
+    idFeeder<SimpleVector<num_t> > D2(0);
+    idFeeder<SimpleVector<num_t> > D3(0);
+    D2.res.entity.reserve(Mlen);
+    D3.res.entity.reserve(Mlen);
+#endif
+    int ctr(0);
+    int tctr(0);
+  for(int lc = 0; 0 <= lc && lc < Mlen; lc ++) {
     SimpleVector<num_t> vbuf(M0.size() * 3);
     vbuf.O();
     switch(m) {
@@ -269,42 +264,28 @@ EFI_STATUS calc() {
       M0.size() )));
     D0.next(vbuf);
     vbuf.setVector(0, unOffsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
-    {
-      SimpleVector<num_t> work(cols);
-      work.O();
+    if(D0.full) {
+      D1.next(vbuf.subVector(0, M0.size()).tdot(M0));
+#if 0
       for(int i = 0; i < cols; i ++) {
         num_t vpsum(int(0));
         num_t rvpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) {
           const int ii(j * cols + i);
-          vpsum  += M2[ii] + M3[ii];
-          rvpsum += vbuf[ii] * M0[ii];
+          // vpsum  += M2[ii] + M3[ii];
+          rvpsum += D1.res[D1.res.size() - 1][ii];
         }
-        work[i] = (vpsum *= rvpsum) * Mcali[i];
-        Mcali[i] = vpsum;
+        show3(rvpsum);
+        showOut(rvpsum, ctr, tctr);
+//        show3(vpsum *= rvpsum);
+//        showOut(vpsum, ctr, tctr);
       }
-      D4.next(work);
-      D5.next(work - M4);
-      D6.next(M4);
-      work = work.tdot(M5 + M6);
-      for(int i = 0; i < cols; i ++) {
-        show3(work[i] * Mcali2[i]);
-        if(D6.full && 1 < D6.res.size()) showOut(work[i] * Mcali2[i], ctr, tctr);
-      }
-      Mcali2 = const_cast<const SimpleVector<num_t>&>(work);
-      M4 = p0maxNext<num_t>(D4.res);
-      M5 = p0maxNext<num_t>(D5.res);
-      M6 = p0maxNext<num_t>(D6.res);
-    }
-    if(D0.full) {
-      D1.next(vbuf.subVector(0, M0.size()).tdot(M0));
-      if(D1.full) {
-        D2.next(vbuf.subVector(0, M0.size()).tdot(M0) - M1);
-        D3.next(M1);
-        M1 = p0maxNext<num_t>(D1.res);
-        M2 = p0maxNext<num_t>(D2.res);
-        M3 = p0maxNext<num_t>(D3.res);
-      }
+      D2.next(D1.res[D1.res.size() - 1] - M1);
+      D3.next(M1);
+      M1 = p0maxNext<num_t>(D1.res);
+      M2 = p0maxNext<num_t>(D2.res);
+      M3 = p0maxNext<num_t>(D3.res);
+#endif
       pair<SimpleVector<SimpleVector<num_t> >, num_t> d0(normalizeS<num_t>(
         D0.res) );
       M0 = unOffsetHalf<num_t>(predMasp<num_t, 20>(move(d0.first), 2,
@@ -315,6 +296,38 @@ EFI_STATUS calc() {
 #endif
    lnext: ;
   }
+#if 1
+  {
+    SimpleVector<num_t> M1(M0.size());
+    SimpleVector<num_t> M2(M0.size());
+    SimpleVector<num_t> M3(M0.size());
+    M1.O(); M2.O(); M3.O();
+    int ctr(0);
+    int tctr(0);
+    idFeeder<SimpleVector<num_t> > D2(0);
+    idFeeder<SimpleVector<num_t> > D3(0);
+    D2.res.entity.reserve(Mlen);
+    D3.res.entity.reserve(Mlen);
+    for(int i0 = 0; i0 < D1.res.size(); i0 ++) {
+      for(int i = 0; i < cols; i ++) {
+        num_t vpsum(int(0));
+        num_t rvpsum(int(0));
+        for(int j = 0; j < _BURN_; j ++) {
+          const int ii(j * cols + i);
+          vpsum  += M2[ii] + M3[ii];
+          rvpsum += D1.res[i0][ii];
+        }
+        show3(vpsum *= rvpsum);
+        showOut(vpsum, ctr, tctr);
+      }
+      D2.next(D1.res[i0] - M1);
+      D3.next(M1);
+      M1 = p0maxNext<num_t>(D1.res.subVector(0, i0 + 1));
+      M2 = p0maxNext<num_t>(D2.res);
+      M3 = p0maxNext<num_t>(D3.res);
+    }
+  }
+#endif
  bbbreak:
 #if defined(_USERLAND_)
   return 0;
