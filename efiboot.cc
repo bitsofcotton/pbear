@@ -1,6 +1,7 @@
 extern "C" {
 #if defined(_USERLAND_)
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
   static void cnputc(int c) { putchar(c); fflush(stdout); }
 #else
@@ -135,10 +136,20 @@ inline void* operator new(size_t, void* __p) noexcept { return __p; }
 inline void* operator new[](size_t, void* __p) noexcept { return __p; }
 #endif
 #else
+// XXX: including new or not causes prediction behaviour large change.
+//      don't know why.
 #include <new>
 #endif
 
-#define _BURN_ 11
+// N.B. we can cache then apply output but no effects on userland test.
+//      this has no effects even with userland test.
+// #define _P_DELAY_ 1
+
+// N.B. we can output bare average, this with external p0 0 | p0 0 | p2 z--
+//      chain better works. don't know why.
+// #define _P_BARE_  1
+
+#define _BURN_ 5
 #define _P_RAW_ 1
 #define _FLOAT_BITS_ 32
 #define _SIMPLEALLOC_ 64
@@ -192,7 +203,7 @@ EFI_STATUS calc() {
  bbreak:
   for(int i = length; 0 < i; i --) pnextcacher<num_t>(i, 1);
 #endif
-  const int Mlen(max(length + 15, int(sizeof(pdata) / sizeof(int)) ));
+  const int Mlen(max(length + 25, int(sizeof(pdata) / sizeof(int)) ));
   SimpleVector<num_t> M0(_BURN_ * cols);
   M0.O();
   idFeeder<SimpleVector<num_t> > D0(length);
@@ -201,7 +212,7 @@ EFI_STATUS calc() {
 #if !defined(_USERLAND_)
   pncr_cp->reserve(Mlen);
 #endif
-#if 0
+#if !defined(_P_DELAY_)
     int ctr(0);
     int tctr(0);
     SimpleVector<num_t> M1(M0.size());
@@ -213,11 +224,10 @@ EFI_STATUS calc() {
     D2.res.entity.reserve(Mlen);
     D3.res.entity.reserve(Mlen);
 #endif
-    int ctr(0);
-    int tctr(0);
   for(int lc = 0; 0 <= lc && lc < Mlen; lc ++) {
+    SimpleVector<num_t> vbuf0(M0.size());
     SimpleVector<num_t> vbuf(M0.size() * 3);
-    vbuf.O();
+    vbuf0.O(); vbuf.O();
     switch(m) {
     case 'n': {
       char buf[0x200];
@@ -230,17 +240,17 @@ EFI_STATUS calc() {
 #endif
       buf[i] = '\0';
       num_t nx;
-      vbuf[0] = nx;
+      vbuf0[0] = nx;
       break;
     } case 'r': {
       for(int i = 0; i < cols; i ++)
-        vbuf[i] = myrandom() & 1 ? - num_t(int(1)) : num_t(int(1));
+        vbuf0[i] = myrandom() & 1 ? - num_t(int(1)) : num_t(int(1));
       break;
     } case 'd': {
       if(sizeof(pdata) / sizeof(int) <= lc) goto bbbreak;
       for(int i = 0; i < cols; i ++) {
-        vbuf[i] = (num_t(pdata[lc]) - num_t(int(999)) / num_t(int(2))) /
-          num_t(int(1000));
+        vbuf0[i] = (num_t(pdata[lc]) - num_t(int(999)) / num_t(int(2)))
+          / num_t(int(1000));
         pdata[lc] <<= 1;
         pdata[lc]  |= pdata[lc] >> 10;
         pdata[lc]  &= (1LL << 10) - 1;
@@ -250,14 +260,14 @@ EFI_STATUS calc() {
     } case 'k': {
       const int x(efi_cons_getc(0));
       if('a' <= x && x <= 'z') {
-        vbuf[0] = sgn<num_t>(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1)) /
-            num_t(int(2)));
+        vbuf0[0] = sgn<num_t>(num_t(x - 'a') / num_t('z' - 'a') - num_t(int(1))
+          / num_t(int(2)));
       } else goto lnext;
       break;
 #endif
     } }
-    for(int i = 1; i < _BURN_; i ++) for(int j = 0; j < cols; j ++)
-      vbuf[i * cols + j] = myprandom() & 1 ? - vbuf[j] : vbuf[j];
+    for(int j = 0; j < cols; j ++) for(int i = 0; i < _BURN_; i ++)
+      vbuf[i + j * _BURN_] = myprandom() & 1 ? - vbuf0[j] : vbuf0[j];
     vbuf.setVector(0, offsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
     vbuf.setVector(M0.size(), mother<num_t>(vbuf.subVector(0, M0.size() )));
     vbuf.setVector(M0.size() * 2, mother<num_t>(vbuf.subVector(M0.size(),
@@ -266,19 +276,22 @@ EFI_STATUS calc() {
     vbuf.setVector(0, unOffsetHalf<num_t>(vbuf.subVector(0, M0.size() )) );
     if(D0.full) {
       D1.next(vbuf.subVector(0, M0.size()).tdot(M0));
-#if 0
+#if !defined(_P_DELAY_)
       for(int i = 0; i < cols; i ++) {
         num_t vpsum(int(0));
         num_t rvpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) {
-          const int ii(j * cols + i);
-          // vpsum  += M2[ii] + M3[ii];
+          const int ii(j + i * _BURN_);
+          vpsum  += M2[ii] + M3[ii];
           rvpsum += D1.res[D1.res.size() - 1][ii];
         }
+#if defined(_P_BARE_)
         show3(rvpsum);
         showOut(rvpsum, ctr, tctr);
-//        show3(vpsum *= rvpsum);
-//        showOut(vpsum, ctr, tctr);
+#else
+        show3(vpsum *= rvpsum);
+        showOut(vpsum, ctr, tctr);
+#endif
       }
       D2.next(D1.res[D1.res.size() - 1] - M1);
       D3.next(M1);
@@ -296,35 +309,43 @@ EFI_STATUS calc() {
 #endif
    lnext: ;
   }
-#if 1
+#if defined(_P_DELAY_)
   {
     SimpleVector<num_t> M1(M0.size());
     SimpleVector<num_t> M2(M0.size());
     SimpleVector<num_t> M3(M0.size());
     M1.O(); M2.O(); M3.O();
-    int ctr(0);
-    int tctr(0);
     idFeeder<SimpleVector<num_t> > D2(0);
     idFeeder<SimpleVector<num_t> > D3(0);
     D2.res.entity.reserve(Mlen);
     D3.res.entity.reserve(Mlen);
+    int ctr(0);
+    int tctr(0);
     for(int i0 = 0; i0 < D1.res.size(); i0 ++) {
       for(int i = 0; i < cols; i ++) {
         num_t vpsum(int(0));
         num_t rvpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) {
-          const int ii(j * cols + i);
+          const int ii(j + i * _BURN_);
           vpsum  += M2[ii] + M3[ii];
           rvpsum += D1.res[i0][ii];
         }
+#if defined(_P_BARE_)
+        show3(rvpsum);
+        showOut(rvpsum, ctr, tctr);
+#else
         show3(vpsum *= rvpsum);
         showOut(vpsum, ctr, tctr);
+#endif
       }
       D2.next(D1.res[i0] - M1);
       D3.next(M1);
       M1 = p0maxNext<num_t>(D1.res.subVector(0, i0 + 1));
       M2 = p0maxNext<num_t>(D2.res);
       M3 = p0maxNext<num_t>(D3.res);
+#if !defined(_USERLAND_)
+      pncr_cp->resize(length);
+#endif
     }
   }
 #endif
