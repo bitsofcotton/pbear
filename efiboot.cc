@@ -142,7 +142,6 @@ inline void* operator new[](size_t, void* __p) noexcept { return __p; }
 #endif
 
 // N.B. we can cache then apply output but no effects on userland test.
-//      this has no effects even with userland test.
 // #define _P_DELAY_ 1
 
 // N.B. we can output bare average, this with external p0 0 | p0 0 | p2 z--
@@ -282,7 +281,7 @@ EFI_STATUS calc() {
         num_t rvpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) {
           const int ii(j + i * _BURN_);
-          vpsum  += M2[ii] + M3[ii];
+          vpsum  += M1[ii] + M3[ii];
           rvpsum += D1.res[D1.res.size() - 1][ii];
         }
 #if defined(_P_BARE_)
@@ -327,7 +326,7 @@ EFI_STATUS calc() {
         num_t rvpsum(int(0));
         for(int j = 0; j < _BURN_; j ++) {
           const int ii(j + i * _BURN_);
-          vpsum  += M2[ii] + M3[ii];
+          vpsum  += M1[ii] + M3[ii];
           rvpsum += D1.res[i0][ii];
         }
 #if defined(_P_BARE_)
